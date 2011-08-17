@@ -46,74 +46,96 @@ class MailApplet(gnaf.Gnaf):
             sett.get('port'),
             sett.get('ssl')
         )
+        self.mailboxes = sett.get('mailboxes')
+        self.mails_old = {}
         return True
     
     def update(self):
-        mailboxes = self.settings.get('mailboxes')
-        mails = []
-        count = 0
-      #::Get unread mail from all mailboxes
-        mails, count, failed = self.get_unreads()
-        if count == 0:
+        self.get_unreads()
+        if self.mail_count == 0:
             self.data = ['No new mail...']
             self.tooltip = 'No new mail...'
+            self.mails_old = {}
             return False
-      #::Remove duplicate emails from Inbox
-        if 'Inbox' in mailboxes:
-            i = mailboxes.index('Inbox')
-            removals = []
-            for mbox in mails:
-                if mbox[0] == 'Inbox':
-                    continue
-                else:
-                    for m in mbox[1]:
-                        removals.extend(im for im in mails[i][1] if im['Date'] ==
-                                        m['Date'] and im['Subject'] == m['Subject'])
-            removal_count = len(removals)
-            if removal_count == len(mails[i][1]):
-                del mails[i]
-            elif removal_count > 0:
-                for r in removals:
-                    mails[i][1].remove(r)
-            count -= removal_count
-      #::Format mail lists for applet menu
+        if 'Inbox' in self.mails:
+            self.remove_duplicates()
+        self.filter_new_ones()
         data = []
-        for mbox in mails:
-            mlist = []
-            for m in mbox[1]:
-                m_From = m['From'].replace('<','&lt;').replace('>','&gt;')
-                mlist.append((m['Subject'], '<b>From:</b> %s\n<b>Date:</b> %s' %
-                            (m_From, m['Date'])))
+        # loop through user's mailbox list instead, to ensure correct mailbox order
+        for mailbox in self.mailboxes:
+            if mailbox not in self.mails:
+                continue
+            mails = []
+            for mail in self.mails[mailbox]:
+                mail_from = mail['From'].replace('<','&lt;').replace('>','&gt;')
+                mails.append((mail['Subject'], '<b>From:</b> %s\n<b>Date:</b> %s' %
+                            (mail_from, mail['Date'])))
             data.append((
-                '%s (%s)' % (mbox[0], len(mlist)),
-                mlist
+                '%s (%s)' % (mailbox, len(mails)),
+                mails
             ))
-      #::Final
         self.data = data
-        self.tooltip = '%i new mail(s)!' % count
-        self.notification = ('%i new mails(s)!' % count, '\n'.join([mbox[0] for mbox in mails]))
-        return (True if not failed else None)
+        self.tooltip = '%i new mail(s)!' % self.mail_count
+        
+        notifications = []
+        for mailbox in self.mails_new:
+            for mail in self.mails_new[mailbox]:
+                mail_from = mail['From'].replace('<','&lt;').replace('>','&gt;')
+                notifications.append((
+                    None,
+                    mail['Subject'],
+                    '<b>From:</b> %s\n<b>Date:</b> %s' % (mail_from, mail['Date'])
+                ))
+        self.notifications = notifications
+        
+        return (True if not self.mail_failed else None)
 
     def get_unreads(self):
-        mailboxes = self.settings.get('mailboxes')
-        mails = []
-        count = 0
-        failed = False
-        for mailbox in mailboxes:
+        self.mails = {}
+        self.mail_count = 0
+        self.mail_failed = False
+        for mailbox in self.mailboxes:
             self.Mail.mailbox_change(mailbox)
             unreads = self.Mail.unread()
             if unreads == None:
-                failed = True
+                self.mail_failed = True
                 continue
             unreads_num = len(unreads)
             if unreads_num > 0:
-                count += unreads_num
-                mails.append([
-                    mailbox,
-                    unreads
-                ])
-        return mails, count, failed
+                self.mail_count += unreads_num
+                self.mails[mailbox] = unreads
     
-    def remove_duplicates():
-        pass
-
+    def remove_duplicates(self):
+        removals = []
+        for mailbox in self.mails:
+            if mailbox == 'Inbox':
+                continue
+            else:
+                for m in self.mails[mailbox]:
+                    removals.extend(im for im in self.mails['Inbox'] if im['Date'] ==
+                                    m['Date'] and im['Subject'] == m['Subject'])
+        removal_count = len(removals)
+        if removal_count == len(self.mails['Inbox']):
+            del self.mails['Inbox']
+        elif removal_count > 0:
+            for r in removals:
+                self.mails['Inbox'].remove(r)
+        self.mail_count -= removal_count
+    
+    def filter_new_ones(self):
+        self.mails_new = self.clone_mails()
+        for mailbox in self.mails:
+            if mailbox in self.mails_old:
+                removals = []
+                for mo in self.mails_old[mailbox]:
+                    removals.extend(mn for mn in self.mails_new[mailbox] if mn['Date'] ==
+                                    mo['Date'] and mn['Subject'] == mo['Subject'])
+                for rem in removals:
+                    self.mails_new[mailbox].remove(rem)
+        self.mails_old = self.clone_mails()
+    
+    def clone_mails(self):
+        clone = {}
+        for mailbox in self.mails:
+            clone[mailbox] = list(self.mails[mailbox])
+        return clone
