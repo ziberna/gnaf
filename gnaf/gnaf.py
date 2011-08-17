@@ -49,7 +49,7 @@ class Gnaf:
         self.tooltip_init()
         self.contextmenu_init()
         self.datamenu_init()
-        self.notification_init()
+        self.notifications_init()
         # final
         global GnafApplets
         GnafApplets.append(self)
@@ -80,8 +80,8 @@ class Gnaf:
         self.tooltip = 'Not updated yet...'
         self.set_tooltip()
     
-    def notification_init(self):
-        self.notification = None
+    def notifications_init(self):
+        self.notifications = []
     
   #::Main methods
     @staticmethod
@@ -175,7 +175,7 @@ class Gnaf:
             gobject.idle_add(self.set_datamenu)
         gobject.idle_add(self.set_icon)
         gobject.idle_add(self.set_tooltip)
-        gobject.idle_add(self.display_notification)
+        gobject.idle_add(self.display_notifications)
         self.update_id = int(time.time())
         gobject.timeout_add(self.interval, self.__update__, self.update_id)
         self.updating = False
@@ -189,7 +189,7 @@ class Gnaf:
         self.tooltip_init()
         self.contextmenu_init()
         self.datamenu_init()
-        self.notification_init()
+        self.notifications_init()
         self.log('clear data', 'DONE')
     
   #::Icon, tooltip and notification methods
@@ -219,6 +219,7 @@ class Gnaf:
         paths = [
             '%s/%s/%s' % (Gnaf.user_dir, self.name, filename),
             '%s/%s' % (Gnaf.user_dir, filename),
+            '%s/%s/icons/%s' % (Gnaf.applet_dir, self.name, filename),
             '%s/%s/%s' % (Gnaf.applet_dir, self.name, filename),
             '%s/%s' % (Gnaf.applet_dir, filename)
         ]
@@ -236,14 +237,18 @@ class Gnaf:
             data = self.data
         self.datamenu = self.menu(data)
     
-    def display_notification(self, note=None):
-        if note == None:
-            note = self.notification
-        if type(note).__name__ == 'tuple':
-            iconfile = self.get_icon_path('new')
-            send = Shell("notify-send -i '%s' '%s' '%s'" % \
-                        (iconfile , note[0], note[1]))
-            self.notification = None
+    def display_notifications(self):
+        icon_new = self.get_icon_path('new')
+        for notification in self.notifications:
+            if type(notification).__name__ == 'str':
+                Shell("notify-send -i '%s' '%s'" % (icon_new, notification))
+            elif type(notification).__name__ == 'tuple':
+                icon_new = notification[0] if notification[0] != None else icon_new
+                if len(notification) == 2:
+                    Shell("notify-send -i '%s' '%s'" % (icon_new, notification[1]))
+                elif len(notification) >= 3:
+                    Shell("notify-send -i '%s' '%s' '%s'" % (icon_new, notification[1], notification[2]))
+        self.notifications = []
     
   #::Interaction methods
     def leftclick(self, icon):

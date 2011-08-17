@@ -16,16 +16,24 @@ def main():
     Gnaf.this_dir = this_dir
     Gnaf.applet_dir = applet_dir
     # applets
-    import settings
-    applets = parse_settings(settings, user_dir, applet_dir)
-    if len(applets) > 0:
-        for applet in applets:
-            for a in applet[0]:
-                a(applet[1])
-        write ('--- Gnaf applets starting (%i total) ---\n' % len(applets))
-        Gnaf.main()
+    settings_file = '%s/settings.py' % user_dir
+    if os.path.exists(settings_file):
+        import settings
+        applets = parse_settings(settings, user_dir, applet_dir)
+        applet_count = len(applets)
+        if applet_count > 0:
+            for applet in applets:
+                if 'enabled' in applet['settings'] and applet['settings']['enabled'] == False:
+                    applet_count -= 1
+                else:
+                    for app in applet['instances']:
+                        app(applet['settings'])
+            write ('--- Gnaf applets starting (%i total) ---\n' % applet_count)
+            Gnaf.main()
+        else:
+            write('No applets found. Check settings in ~/.gnaf/setting.py.\n')
     else:
-        write('No applets found. Check settings in ~/.gnaf/setting.py.\n')
+        write('No settings found. Create %s.' % settings_file)
 
 def parse_settings(settings, user_dir, applet_dir):
     applets = []
@@ -34,7 +42,11 @@ def parse_settings(settings, user_dir, applet_dir):
         sett = variables[var]
         if type(sett).__name__ == 'dict' and 'applet' in sett:
             classname = sett['class'] if 'class' in sett else None
-            applets.append((find_applet(user_dir, applet_dir, sett['applet'], classname, var), sett))
+            applet = {
+                'instances': find_applet(user_dir, applet_dir, sett['applet'], classname, var),
+                'settings': sett
+            }
+            applets.append(applet)
     return applets
     
 def find_applet(user_dir, applet_dir, applet, classname, setting):
