@@ -239,15 +239,22 @@ class Gnaf:
     
     def display_notifications(self):
         icon_new = self.get_icon_path('new')
-        for notification in self.notifications:
-            if type(notification).__name__ == 'str':
-                Shell("notify-send -i '%s' '%s'" % (icon_new, notification))
-            elif type(notification).__name__ == 'tuple':
-                icon_new = notification[0] if notification[0] != None else icon_new
-                if len(notification) == 2:
-                    Shell("notify-send -i '%s' '%s'" % (icon_new, notification[1]))
-                elif len(notification) >= 3:
-                    Shell("notify-send -i '%s' '%s' '%s'" % (icon_new, notification[1], notification[2]))
+        for note in self.notifications:
+            if type(note).__name__ == 'str':
+                n = note.replace("'", "'\\''")
+                command = "notify-send -i '%s' '%s'" % (icon_new, n)
+            elif type(note).__name__ == 'tuple':
+                icon = note[0] if note[0] != None else icon_new
+                n1 = note[1].replace("'", "'\\''")
+                if len(note) == 2:
+                    command = "notify-send -i '%s' '%s'" % (icon, n1)
+                elif len(note) >= 3:
+                    n2 = note[2].replace("'", "'\\''")
+                    command = "notify-send -i '%s' '%s' '%s'" % (icon, n1, n2)
+            else:
+                continue
+            command = command.replace('\n', '\\n')
+            Shell(command)
         self.notifications = []
     
   #::Interaction methods
