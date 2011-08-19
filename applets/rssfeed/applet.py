@@ -30,7 +30,7 @@ class RssFeed(gnaf.Gnaf):
         },
         'url':'http://feeds.bbci.co.uk/news/rss.xml',
         'namespace':'http://www.w3.org/2005/Atom',
-        'entries-num':30,
+        'entries-num':10,
         'max-title-length':75,
         'random':False
     }
@@ -39,6 +39,7 @@ class RssFeed(gnaf.Gnaf):
         url = self.settings.get('url')
         namespace = self.settings.get('namespace')
         self.FeedParser = FeedParser(url, namespace)
+        self.entries_old = None
         self.tooltip = 'Feed URL: %s' % url
         return True
 
@@ -47,20 +48,53 @@ class RssFeed(gnaf.Gnaf):
         if update == None:
             return None
         else:
-            entries = self.FeedParser.parse()
-            if entries == None:
+            self.entries = self.FeedParser.parse()
+            if self.entries == None:
                 return None
-            elif len(entries) > 0:
+            elif len(self.entries) > 0:
                 if self.settings.get('random'):
                     random.shuffle(entries)
-                data = []
                 num = self.settings.get('entries-num')
+                self.entries = self.entries[:num]
                 length = self.settings.get('max-title-length')
-                for entry in entries[:num]:
+                data = []
+                for entry in self.entries:
                     if length != None and len(entry.title) > length:
                         entry.title = '%s...' % entry.title[:length-3]
-                    data.append((entry.title,entry.author))
+                    data.append((
+                        entry.title,
+                        '<b>Author:</b> %s\n<b>Published:</b> %s' % (
+                            entry.author,
+                            entry.published.strftime('%d %b %Y at %H:%M')
+                        )
+                    ))
                 self.data = data
+                entries_new = self.get_new_entries()
+                notifications = []
+                for entry in entries_new:
+                    notifications.append((
+                        None,
+                        '%s' % entry.title,
+                        '<b>Author:</b> %s\n<b>Published:</b> %s' % (
+                            entry.author,
+                            entry.published.strftime('%d %b %Y at %H:%M')
+                        )
+                    ))
+                self.notifications = notifications
                 return True
             else:
                 return False
+    
+    def get_new_entries(self):
+        # return empty list on first run
+        if self.entries_old == None:
+            self.entries_old = list(self.entries)
+            return []
+        entries_new = list(self.entries)
+        for e_old in self.entries_old:
+            for e_new in entries_new:
+                if e_new.title == e_old.title and e_new.published_str == e_old.published_str:
+                    entries_new.remove(e_new)
+                    break
+        self.entries_old = list(self.entries)
+        return entries_new

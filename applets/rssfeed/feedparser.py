@@ -17,6 +17,7 @@
 
 import urllib
 import xml.etree.ElementTree as etree
+from datetime import datetime
 
 NAMESPACE = 'http://www.w3.org/2005/Atom'
 
@@ -24,6 +25,12 @@ class Entry:
     def __init__(self, entry):
         self.title = entry.find('{%s}title' % NAMESPACE).text
         self.author = entry.find('{%s}author' % NAMESPACE).find('{%s}name' % NAMESPACE).text
+        self.published_str = entry.find('{%s}published' % NAMESPACE).text
+        self.published = datetime.strptime(self.published_str, '%Y-%m-%dT%H:%M:%SZ')
+        self.__repr__ = self.__unicode__ = self.__str__
+    
+    def __str__(self):
+        return '%s: %s' % (self.author, self.title)
 
 class FeedParser:
     def __init__(self, url, namespace=None):
