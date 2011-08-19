@@ -16,7 +16,7 @@
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
 import gnaf
-from arch_pkgs import ArchPkgs
+from archpkgs import ArchPkgs
 
 class ArchPkgsApplet(gnaf.Gnaf):
     settings = {
@@ -39,13 +39,14 @@ class ArchPkgsApplet(gnaf.Gnaf):
     
     def initialize(self):
         self.ArchPkgs = ArchPkgs(self.settings.get('aur'))
+        self.pkgs_old = []
         return self.ArchPkgs.pacman
 
     def update(self):
-        pkgs = self.ArchPkgs.search()
-        if pkgs == None:
+        self.pkgs = self.ArchPkgs.search()
+        if self.pkgs == None:
             return None
-        count = len(pkgs)
+        count = len(self.pkgs)
         if count == 0:
             self.tooltip = 'No updates, your system is up-to-date!'
             self.data = ['What, you think I\'m lying?']
@@ -55,12 +56,35 @@ class ArchPkgsApplet(gnaf.Gnaf):
             repos = self.settings.get('repos')
             data = []
             for repo in repos:
-                repo_pkgs = [p for p in pkgs if p.repo == repo]
+                repo_pkgs = [p for p in self.pkgs if p.repo == repo]
                 repo_count = len(repo_pkgs)
                 if repo_count > 0:
                     data.append((
                         '%s (%i)' % (repo, repo_count),
-                        ['%s (%s -> %s)' % (p.name, p.old_version, p.version) for p in repo_pkgs]
+                        ['%s (%s -> %s)' % (p.name, p.version_old, p.version) for p in repo_pkgs]
                     ))
             self.data = data
+            pkgs_new = self.get_new_entries()
+            notifications = []
+            for p in pkgs_new:
+                notifications.append((
+                    None,
+                    p.name,
+                    '<b>Repo:</b> %s\n<b>Version:</b> %s -> %s' % (
+                        p.repo,
+                        p.version_old,
+                        p.version
+                    )
+                ))
+            self.notifications = notifications
             return True
+    
+    def get_new_entries(self):
+        pkgs_new = list(self.pkgs)
+        for p_old in self.pkgs_old:
+            for p_new in pkgs_new:
+                if p_new.name == p_old.name and p_new.version == p_old.version:
+                    pkgs_new.remove(p_new)
+                    break
+        self.pkgs_old = list(self.pkgs)
+        return pkgs_new
