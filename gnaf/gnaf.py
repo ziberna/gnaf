@@ -41,8 +41,6 @@ class Gnaf:
     def __init__(self, settings):
         # settings initialization
         self.settings = DictMerge(settings, self.settings)
-        if self.settings.get('enabled') != None:
-            self.enabled = self.settings.get('enabled')
         self.interval = int(self.settings.get('interval') * 60 * 1000)
         # GUI initialization
         self.icon_init()
@@ -67,6 +65,7 @@ class Gnaf:
             ('Clear data', self.cleardata),
             ('Mark as idle', self.set_icon_idle),
             '-',
+            ('Disable' if self.enabled else 'Enable', self.enable_disable),
             ('Quit', self.quit),
             ('Quit all', gtk.main_quit)
         ]
@@ -98,10 +97,17 @@ class Gnaf:
         self.icon.set_visible(False)
         global GnafApplets
         GnafApplets.remove(self)
+        self.log('QUIT')
         if len(GnafApplets) == 0:
             gtk.main_quit()
+    
+    def enable_disable(self):
+        self.enabled = not self.enabled
+        self.set_icon('idle')
+        self.contextmenu_init()
+        self.log('enabled', 'TRUE' if self.enabled else 'FALSE')
         
-    def __update__(self, id):
+    def __update__(self, id=None):
         if self.enabled:
             if self.running:
                 if not self.updating and id == self.update_id:
@@ -110,11 +116,16 @@ class Gnaf:
                     self.set_icon()
             else:
                 thread.start_new(self.initializedata, ())
+        else:
+            gobject.timeout_add(self.interval, self.__update__)
     
     def update_manual(self):
         if not self.updating:
             self.update_id = int(time.time())
             self.__update__(self.update_id)
+    
+    def update_id_set(self):
+        self.update_id = int(time.time())
     
     #> separate thread !
     def initializedata(self):
@@ -130,7 +141,7 @@ class Gnaf:
         if success:
             self.log('initialization', 'DONE')
             self.running = True
-            self.update_id = int(time.time())
+            self.update_id_set()
             gobject.idle_add(self.__update__, self.update_id)
         else:
             self.log('initialization', 'ERROR')
@@ -176,7 +187,7 @@ class Gnaf:
         gobject.idle_add(self.set_icon)
         gobject.idle_add(self.set_tooltip)
         gobject.idle_add(self.display_notifications)
-        self.update_id = int(time.time())
+        self.update_id_set()
         gobject.timeout_add(self.interval, self.__update__, self.update_id)
         self.updating = False
         
@@ -238,6 +249,8 @@ class Gnaf:
         self.datamenu = self.menu(data)
     
     def display_notifications(self):
+        if self.settings.get('notifications') == False:
+            return
         icon_new = self.get_icon_path('new')
         for note in self.notifications:
             if type(note).__name__ == 'str':
@@ -299,6 +312,10 @@ class Gnaf:
             status = ' > %s' % status
         else:
             status = ''
-        message = '[%s] %s: %s%s\n' % (time.strftime('%H:%M:%S'),
-                                    self.settings_name, type, status)
+        message = '[%s] %s: %s%s\n' % (
+            time.strftime('%H:%M:%S'),
+            self.settings_name,
+            type,
+            status
+        )
         write(message)

@@ -4,10 +4,8 @@ write = sys.stdout.write
 from gnaf import Gnaf
 
 def main():  
-    # dirs  
-    user_dir = '%s/.gnaf' % os.getenv('HOME')
-    this_dir = os.path.abspath(os.path.dirname(__file__))
-    applet_dir = '%s/applets' % this_dir
+    # dirs
+    user_dir, this_dir, applet_dir = get_paths()
     # python paths
     sys.path.insert(0, user_dir)
     sys.path.insert(1, applet_dir)
@@ -35,6 +33,12 @@ def main():
     else:
         write('No settings found. Create %s.' % settings_file)
 
+def get_paths():
+    user_dir = '%s/.gnaf' % os.getenv('HOME')
+    this_dir = os.path.abspath(os.path.dirname(__file__))
+    applet_dir = '%s/applets' % this_dir
+    return user_dir, this_dir, applet_dir
+
 def parse_settings(settings, user_dir, applet_dir):
     applets = []
     variables = vars(settings)
@@ -58,7 +62,18 @@ def find_applet(user_dir, applet_dir, applet, classname, setting):
         and os.path.exists('%s/%s/applet.py' % (dir, applet)):
             # import module and get its variables
             module_path = ('%s.applet' % applet) if dir == user_dir else ('gnaf.applets.%s.applet' % applet)
-            module = __import__(module_path, globals(), locals(), ['*'], -1 if dir == user_dir else 0)
+            try:
+                module = __import__(module_path, globals(), locals(), ['*'], -1 if dir == user_dir else 0)
+            except:
+                etype, evalue = sys.exc_info()[:2]
+                write('(!) Exception thrown while importing %s:\n  %s - %s\n' % (
+                    applet,
+                    etype.__name__,
+                    evalue
+                ))
+                continue
+            finally:
+                sys.exc_info()
             variables = vars(module)
             # search for a certain variable
             if type(classname).__name__ == 'str' and classname in variables:
