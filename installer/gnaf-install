@@ -2,7 +2,7 @@
 gnaf_repo="git://github.com/Kantist/gnaf.git"
 py2_site_packages="/usr/lib/python2.7/site-packages"
 git clone "${git_repo}"
-cp gnaf "${py2_site_packages}/gnaf"
+cp -r gnaf "${py2_site_packages}/gnaf"
 cp bin/gnaf /usr/bin/gnaf
 ./gnaf-test
 mkdir "${HOME}/.gnaf"
