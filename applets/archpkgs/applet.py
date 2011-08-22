@@ -64,22 +64,9 @@ class ArchPkgsApplet(gnaf.Gnaf):
                         ['%s (%s -> %s)' % (p.name, p.version_old, p.version) for p in repo_pkgs]
                     ))
             self.data = data
-            pkgs_new = self.get_new_entries()
-            notifications = []
-            for p in pkgs_new:
-                notifications.append((
-                    None,
-                    p.name,
-                    '<b>Repo:</b> %s\n<b>Version:</b> %s -> %s' % (
-                        p.repo,
-                        p.version_old,
-                        p.version
-                    )
-                ))
-            self.notifications = notifications
             return True
     
-    def get_new_entries(self):
+    def notify(self):
         pkgs_new = list(self.pkgs)
         for p_old in self.pkgs_old:
             for p_new in pkgs_new:
@@ -87,4 +74,16 @@ class ArchPkgsApplet(gnaf.Gnaf):
                     pkgs_new.remove(p_new)
                     break
         self.pkgs_old = list(self.pkgs)
-        return pkgs_new
+        notifications = []
+        for p in pkgs_new:
+            notifications.append((
+                None,
+                p.name,
+                '<b>Repo:</b> %s\n<b>Version:</b> %s -> %s' % (
+                    p.repo,
+                    p.version_old,
+                    p.version
+                )
+            ))
+        self.notifications = notifications
+        return (len(notifications) > 0)
