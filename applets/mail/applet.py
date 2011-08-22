@@ -17,6 +17,7 @@
 
 import gnaf
 from mail import Mail
+from gnaf.lib.shell import Shell, bash_quotes
 
 class MailApplet(gnaf.Gnaf):
     settings = {
@@ -34,7 +35,8 @@ class MailApplet(gnaf.Gnaf):
         'ssl':True,
         'mailboxes':[
         '   Inbox'
-        ]
+        ],
+        'url':None
     }
     
     def initialize(self):
@@ -48,6 +50,7 @@ class MailApplet(gnaf.Gnaf):
         )
         self.mailboxes = sett.get('mailboxes')
         self.mails_old = {}
+        
         return True
     
     def update(self):
@@ -59,7 +62,6 @@ class MailApplet(gnaf.Gnaf):
             return False
         if 'Inbox' in self.mails:
             self.remove_duplicates()
-        self.filter_new_ones()
         data = []
         # loop through user's mailbox list instead, to ensure correct mailbox order
         for mailbox in self.mailboxes:
@@ -68,15 +70,20 @@ class MailApplet(gnaf.Gnaf):
             mails = []
             for mail in self.mails[mailbox]:
                 mail_from = mail['From'].replace('<','&lt;').replace('>','&gt;')
-                mails.append((mail['Subject'], '<b>From:</b> %s\n<b>Date:</b> %s' %
-                            (mail_from, mail['Date'])))
+                mails.append((mail['Subject'], self.open_browser,
+                              '<b>From:</b> %s\n<b>Date:</b> %s' %
+                              (mail_from, mail['Date'])
+                ))
             data.append((
                 '%s (%s)' % (mailbox, len(mails)),
                 mails
             ))
         self.data = data
         self.tooltip = '%i new mail(s)!' % self.mail_count
-        
+        return (True if not self.mail_failed else None)
+    
+    def notify(self):
+        self.filter_new_ones()
         notifications = []
         for mailbox in self.mails_new:
             for mail in self.mails_new[mailbox]:
@@ -87,8 +94,7 @@ class MailApplet(gnaf.Gnaf):
                     '<b>From:</b> %s\n<b>Date:</b> %s' % (mail_from, mail['Date'])
                 ))
         self.notifications = notifications
-        
-        return (True if not self.mail_failed else None)
+        return (len(notifications) > 0)
 
     def get_unreads(self):
         self.mails = {}
@@ -139,3 +145,10 @@ class MailApplet(gnaf.Gnaf):
         for mailbox in self.mails:
             clone[mailbox] = list(self.mails[mailbox])
         return clone
+    
+    def open_browser(self):
+        url = self.settings.get('url')
+        if url != None:
+            xdg_open = 'xdg-open \'%s\'' % bash_quotes(url)
+            Shell(xdg_open)
+    
