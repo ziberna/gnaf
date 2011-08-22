@@ -5,12 +5,12 @@ if [ ! -d "$gnaf_dir" ]; then
     echo 'Install gnaf first.'    
 else
     if [ "$1" == "" ]; then
-        echo 'No applet name given'
+        echo 'No applet name given.'
     else
         applet=$1
         applet_repo="git://github.com/Kantist/gnaf-${applet}.git"
         git clone "${applet_repo}"
-        #cp -r "gnaf-${applet}" "${gnaf_dir}/applets/${applet}"
+        cp -r "gnaf-${applet}" "${gnaf_dir}/applets/${applet}"
         echo '' >> "${settings_dir}"
         echo "${applet} = {'applet':'${applet}'}" >> "${settings_dir}"
         echo "Applet ${applet} has been succesfully installed."
