@@ -22,10 +22,12 @@ import thread
 import time
 import sys
 import os
+import traceback
 write = sys.stdout.write
 
 from lib.dictmerge import DictMerge
-from lib.shell import Shell
+from lib.shell import Shell, bash_quotes
+from lib.format import format_L_R, format_C
 
 GnafApplets = []
 
@@ -67,7 +69,7 @@ class Gnaf:
             '-',
             ('Disable' if self.enabled else 'Enable', self.enable_disable),
             ('Quit', self.quit),
-            ('Quit all', gtk.main_quit)
+            ('Quit all', Gnaf.main_quit)
         ]
         self.contextmenu = self.menu(self.context)
     
@@ -92,20 +94,27 @@ class Gnaf:
             gobject.idle_add(applet.update_manual)
         gtk.main()
     
+    @staticmethod
+    def main_quit():
+        write('%s\n' % format_C(' Gnaf applets quitting ', '-'))
+        for applet in list(GnafApplets):
+            applet.quit()
+    
     def quit(self):
         self.enabled = False
         self.icon.set_visible(False)
         global GnafApplets
         GnafApplets.remove(self)
-        self.log('QUIT')
+        self.log('', 'QUIT')
         if len(GnafApplets) == 0:
             gtk.main_quit()
     
     def enable_disable(self):
         self.enabled = not self.enabled
-        self.set_icon('idle')
+        self.icontype = 'idle'
+        self.set_icon()
         self.contextmenu_init()
-        self.log('enabled', 'TRUE' if self.enabled else 'FALSE')
+        self.log('', 'ENABLED' if self.enabled else 'DISABLED')
         
     def __update__(self, id=None):
         if self.enabled:
@@ -130,14 +139,11 @@ class Gnaf:
     #> separate thread !
     def initializedata(self):
         self.log('initializing')
-        success = None
-        if self.settings.get('debug'):
+        try:
             success = self.initialize()
-        else:
-            try:
-                success = self.initialize()
-            except:
-                success = False
+        except:
+            self.debug_output()
+            success = False
         if success:
             self.log('initialization', 'DONE')
             self.running = True
@@ -145,51 +151,57 @@ class Gnaf:
             gobject.idle_add(self.__update__, self.update_id)
         else:
             self.log('initialization', 'ERROR')
-            self.icontype = 'error'
             message = 'Error while initializing.\nNext try in: %.1f minutes' \
                        % self.settings.get('interval')
-            self.tooltip = message
-            self.data = [message]
-            gobject.idle_add(self.set_icon)
-            gobject.idle_add(self.set_tooltip())
-            gobject.idle_add(self.set_datamenu())
+            gobject.idle_add(self.set_icon, 'error')
+            gobject.idle_add(self.set_tooltip, message)
+            gobject.idle_add(self.set_datamenu, [message])
             gobject.timeout_add(self.interval, self.__update__)
     
     #> separate thread !
     def updatedata(self):
         self.updating = True
         self.log('updating')
-        if self.settings.get('debug'):
+        try:
             success = self.update()
-        else:
-            try:
-                success = self.update()
-            except:
-                success = None
+        except:
+            self.debug_output()
+            success = None
         if success == None:
           # Error
             self.log('update', 'ERROR')
             self.icontype = 'error'
-            self.icontype = 'error'
             message = 'Error while updating.\nNext try in: %.1f minutes' \
                        % self.settings.get('interval')
-            self.tooltip = message
+            gobject.idle_add(self.set_tooltip, message)
         elif success == False:
           # No updates
             self.log('update', 'NO UPDATES')
             self.icontype = 'idle'
             gobject.idle_add(self.set_datamenu)
+            gobject.idle_add(self.set_tooltip)
         else:
           # Updates
             self.log('update', 'NEW')
             self.icontype = 'new'
             gobject.idle_add(self.set_datamenu)
+            gobject.idle_add(self.set_tooltip)
         gobject.idle_add(self.set_icon)
-        gobject.idle_add(self.set_tooltip)
-        gobject.idle_add(self.display_notifications)
+        self.notifydata()
+        # Final
         self.update_id_set()
         gobject.timeout_add(self.interval, self.__update__, self.update_id)
         self.updating = False
+    
+    def notifydata(self):
+        if self.settings.get('notify') != False:
+            try:
+                success = self.notify()
+            except:
+                success = None
+                self.debug_output()
+            if success:
+                self.notify_send()
         
     def cleardata(self):
         self.log('clearing data')
@@ -248,25 +260,24 @@ class Gnaf:
             data = self.data
         self.datamenu = self.menu(data)
     
-    def display_notifications(self):
+    def notify_send(self):
         if self.settings.get('notifications') == False:
             return
         icon_new = self.get_icon_path('new')
         for note in self.notifications:
             if type(note).__name__ == 'str':
-                n = note.replace("'", "'\\''")
+                n = bash_quotes(note)
                 command = "notify-send -i '%s' '%s'" % (icon_new, n)
             elif type(note).__name__ == 'tuple':
                 icon = note[0] if note[0] != None else icon_new
-                n1 = note[1].replace("'", "'\\''")
+                n1 = bash_quotes(note[1])
                 if len(note) == 2:
                     command = "notify-send -i '%s' '%s'" % (icon, n1)
                 elif len(note) >= 3:
-                    n2 = note[2].replace("'", "'\\''")
+                    n2 = bash_quotes(note[2])
                     command = "notify-send -i '%s' '%s' '%s'" % (icon, n1, n2)
             else:
                 continue
-            command = command.replace('\n', '\\n')
             Shell(command)
         self.notifications = []
     
@@ -298,24 +309,32 @@ class Gnaf:
                         menuItem.set_tooltip_markup(item[2])
                 elif type(item[1]).__name__ == 'str':
                     menuItem.set_tooltip_markup(item[1])
-                elif item[1] != None:
-                    menuItem.connect('activate', lambda a, f=item[1]: f())
-                    if len(item) == 3:
-                        menuItem.set_tooltip_markup(item[2])
+                elif type(item[1]).__name__ == 'instancemethod' or \
+                     type(item[1]).__name__ == 'function':
+                    if len(item) == 3 and type(item[2]).__name__ == 'tuple':
+                        menuItem.connect('activate', lambda s, f=item[1], a=item[2]: f(*a))
+                    else:
+                        menuItem.connect('activate', lambda s, f=item[1]: f())
+                        if len(item) == 3:
+                            menuItem.set_tooltip_markup(item[2])
             menu.append(menuItem)
         menu.show_all()
         return menu
     
   #::Log methods
     def log(self, type, status=None):
-        if status != None:
-            status = ' > %s' % status
-        else:
-            status = ''
-        message = '[%s] %s: %s%s\n' % (
+        message = '[%s] %s: %s' % (
             time.strftime('%H:%M:%S'),
             self.settings_name,
-            type,
-            status
+            type
         )
-        write(message)
+        if status != None:
+            status = '[%s]' % status
+            message = format_L_R(message, status, '', 80, 1)
+        write('%s\n' % message)        
+    
+    def debug_output(self):
+        if self.settings.get('debug') != False:
+            write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
+            traceback.print_exc()
+            write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))

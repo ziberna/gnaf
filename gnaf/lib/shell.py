@@ -24,3 +24,6 @@ class Shell:
         self.pid = p.pid
         self.output, self.error = p.communicate()
         self.failed = p.returncode
+
+def bash_quotes(str):
+    return str.replace("'", "'\\''")

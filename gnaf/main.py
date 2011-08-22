@@ -1,7 +1,9 @@
 import os
 import sys
+import traceback
 write = sys.stdout.write
 from gnaf import Gnaf
+from lib.format import format_L_R, format_C
 
 def main():  
     # dirs
@@ -26,7 +28,7 @@ def main():
                 else:
                     for app in applet['instances']:
                         app(applet['settings'])
-            write ('--- Gnaf applets starting (%i total) ---\n' % applet_count)
+            write('%s\n' % format_C(' Gnaf applets starting (%i total) ' % applet_count, '-'))
             Gnaf.main()
         else:
             write('No applets found. Check settings in ~/.gnaf/setting.py.\n')
@@ -47,14 +49,15 @@ def parse_settings(settings, user_dir, applet_dir):
         if type(sett).__name__ == 'dict' and 'applet' in sett:
             classname = sett['class'] if 'class' in sett else None
             applet = {
-                'instances': find_applet(user_dir, applet_dir, sett['applet'], classname, var),
+                'instances': find_applet(user_dir, applet_dir, sett, classname, var),
                 'settings': sett
             }
             applets.append(applet)
     return applets
     
-def find_applet(user_dir, applet_dir, applet, classname, setting):
+def find_applet(user_dir, applet_dir, settings, classname, sett_name):
     applets = []
+    applet = settings['applet']
     # check user and applet dirs
     for dir in [user_dir, applet_dir]:
         # check if applet exists
@@ -65,15 +68,12 @@ def find_applet(user_dir, applet_dir, applet, classname, setting):
             try:
                 module = __import__(module_path, globals(), locals(), ['*'], -1 if dir == user_dir else 0)
             except:
-                etype, evalue = sys.exc_info()[:2]
-                write('(!) Exception thrown while importing %s:\n  %s - %s\n' % (
-                    applet,
-                    etype.__name__,
-                    evalue
-                ))
+                write('%s\n' %  format_C(' Exception thrown while importing %s ' % applet, '-'))
+                if 'debug' not in settings or settings['debug'] != False:
+                    write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
+                    traceback.print_exc()
+                    write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))
                 continue
-            finally:
-                sys.exc_info()
             variables = vars(module)
             # search for a certain variable
             if type(classname).__name__ == 'str' and classname in variables:
@@ -90,7 +90,7 @@ def find_applet(user_dir, applet_dir, applet, classname, setting):
     # filter variables for subclasses of Gnaf
     applets = [a for a in applets if type(a).__name__ == 'classobj' and issubclass(a, Gnaf)]
     for a in applets:
-        write('Found applet for %s: class %s (from %s)\n' % (setting, a.__name__, applet))
+        write('%s\n' % format_L_R('%s: class %s (from %s)' % (sett_name, a.__name__, applet), '[FOUND APPLET]', '', 80, 1))
         a.name = applet
-        a.settings_name = setting
+        a.settings_name = sett_name
     return applets
