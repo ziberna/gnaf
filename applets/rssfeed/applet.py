@@ -69,21 +69,24 @@ class RssFeed(gnaf.Gnaf):
                         )
                     ))
                 self.data = data
-                entries_new = self.get_new_entries()
-                notifications = []
-                for entry in entries_new:
-                    notifications.append((
-                        None,
-                        '%s' % entry.title,
-                        '<b>Author:</b> %s\n<b>Published:</b> %s' % (
-                            entry.author,
-                            entry.published.strftime('%d %b %Y at %H:%M')
-                        )
-                    ))
-                self.notifications = notifications
                 return True
             else:
                 return False
+            
+    def notify(self):
+        entries_new = self.get_new_entries()
+        notifications = []
+        for entry in entries_new:
+            notifications.append((
+                None,
+                '%s' % entry.title,
+                '<b>Author:</b> %s\n<b>Published:</b> %s' % (
+                    entry.author,
+                    entry.published.strftime('%d %b %Y at %H:%M')
+                )
+            ))
+        self.notifications = notifications
+        return (len(notifications) > 0)
     
     def get_new_entries(self):
         # return empty list on first run
