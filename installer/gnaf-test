@@ -1,0 +1,11 @@
+#!/usr/bin/env python2
+try:
+    import gnaf
+    success = True
+except ImportError:
+    success = False
+finally:
+    if success:
+        print 'Gnaf has been successfully installed.'
+    else:
+        print 'Gnaf installation has failed.'

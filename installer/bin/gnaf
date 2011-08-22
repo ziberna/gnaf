@@ -1,0 +1,3 @@
+#!/usr/bin/env python2
+from gnaf.main import main
+main()
