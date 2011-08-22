@@ -121,8 +121,6 @@ class Gnaf:
             if self.running:
                 if not self.updating and id == self.update_id:
                     thread.start_new(self.updatedata, ())
-                    self.icontype = 'updating'
-                    self.set_icon()
             else:
                 thread.start_new(self.initializedata, ())
         else:
@@ -138,7 +136,8 @@ class Gnaf:
     
     #> separate thread !
     def initializedata(self):
-        self.log('initializing')
+        gobject.idle_add(self.set_tooltip, 'Initializing...')
+        self.log('initializing', '...')
         try:
             success = self.initialize()
         except:
@@ -151,8 +150,8 @@ class Gnaf:
             gobject.idle_add(self.__update__, self.update_id)
         else:
             self.log('initialization', 'ERROR')
-            message = 'Error while initializing.\nNext try in: %.1f minutes' \
-                       % self.settings.get('interval')
+            message = 'Error while initializing.\nNext try at %s' \
+                       % time.strftime('%H:%M', self.next_update_at())
             gobject.idle_add(self.set_icon, 'error')
             gobject.idle_add(self.set_tooltip, message)
             gobject.idle_add(self.set_datamenu, [message])
@@ -160,8 +159,10 @@ class Gnaf:
     
     #> separate thread !
     def updatedata(self):
+        gobject.idle_add(self.set_icon, 'updating')
+        gobject.idle_add(self.set_tooltip, 'Updating...')
         self.updating = True
-        self.log('updating')
+        self.log('updating', '...')
         try:
             success = self.update()
         except:
@@ -171,8 +172,8 @@ class Gnaf:
           # Error
             self.log('update', 'ERROR')
             self.icontype = 'error'
-            message = 'Error while updating.\nNext try in: %.1f minutes' \
-                       % self.settings.get('interval')
+            message = 'Error while updating.\nNext try at %s' \
+                       % time.strftime('%H:%M', self.next_update_at())
             gobject.idle_add(self.set_tooltip, message)
         elif success == False:
           # No updates
@@ -186,8 +187,8 @@ class Gnaf:
             self.icontype = 'new'
             gobject.idle_add(self.set_datamenu)
             gobject.idle_add(self.set_tooltip)
+            self.notifydata()
         gobject.idle_add(self.set_icon)
-        self.notifydata()
         # Final
         self.update_id_set()
         gobject.timeout_add(self.interval, self.__update__, self.update_id)
@@ -204,7 +205,7 @@ class Gnaf:
                 self.notify_send()
         
     def cleardata(self):
-        self.log('clearing data')
+        self.log('clearing data', '...')
         self.running = False
         self.updating = False
         self.enabled = True
@@ -338,3 +339,11 @@ class Gnaf:
             write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
             traceback.print_exc()
             write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))
+    
+    def next_update_at(self, from_id=True):
+        if from_id:
+            last = self.update_id
+        else:
+            last = time.time()
+        return time.localtime(last + self.interval / 1000)
+        
