@@ -39,6 +39,7 @@ class ArchPkgsApplet(gnaf.Gnaf):
     
     def initialize(self):
         self.ArchPkgs = ArchPkgs(self.settings.get('aur'))
+        self.repos = self.settings.get('repos')
         self.pkgs_old = []
         return self.ArchPkgs.pacman
 
@@ -53,9 +54,8 @@ class ArchPkgsApplet(gnaf.Gnaf):
             return False
         else:
             self.tooltip = '%i update(s)!' % count
-            repos = self.settings.get('repos')
             data = []
-            for repo in repos:
+            for repo in self.repos:
                 repo_pkgs = [p for p in self.pkgs if p.repo == repo]
                 repo_count = len(repo_pkgs)
                 if repo_count > 0:
@@ -74,16 +74,11 @@ class ArchPkgsApplet(gnaf.Gnaf):
                     pkgs_new.remove(p_new)
                     break
         self.pkgs_old = list(self.pkgs)
-        notifications = []
-        for p in pkgs_new:
-            notifications.append((
-                None,
-                p.name,
-                '<b>Repo:</b> %s\n<b>Version:</b> %s -> %s' % (
-                    p.repo,
-                    p.version_old,
-                    p.version
-                )
-            ))
-        self.notifications = notifications
+        title = '%s new package(s)' % len(pkgs_new)
+        body = ''
+        for repo in self.repos:
+            repo_pkgs = [p for p in pkgs_new if p.repo == repo]
+            body += '%s (%i):\n' % (repo, len(repo_pkgs))
+            body += ''.join(['  %s (%s -> %s)\n' % (p.name, p.version_old, p.version) for p in pkgs_new])
+        self.notifications = [(None, title, body)]
         return (len(notifications) > 0)
