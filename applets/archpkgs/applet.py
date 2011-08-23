@@ -74,11 +74,16 @@ class ArchPkgsApplet(gnaf.Gnaf):
                     pkgs_new.remove(p_new)
                     break
         self.pkgs_old = list(self.pkgs)
-        title = '%s new package(s)' % len(pkgs_new)
-        body = ''
-        for repo in self.repos:
-            repo_pkgs = [p for p in pkgs_new if p.repo == repo]
-            body += '%s (%i):\n' % (repo, len(repo_pkgs))
-            body += ''.join(['  %s (%s -> %s)\n' % (p.name, p.version_old, p.version) for p in pkgs_new])
-        self.notifications = [(None, title, body)]
-        return (len(notifications) > 0)
+        if len(pkgs_new) > 0:
+            title = '%s new package(s)' % len(pkgs_new)
+            body = ''
+            for repo in self.repos:
+                repo_pkgs = [p for p in pkgs_new if p.repo == repo]
+                if len(repo_pkgs) == 0:
+                    continue
+                body += '<b>%s (%i)</b>:\n' % (repo, len(repo_pkgs))
+                body += ''.join(['  %s (%s -> %s)\n' % (p.name, p.version_old, p.version) for p in repo_pkgs])
+            self.notifications = [(None, title, body)]
+            return True
+        else:
+            return False
