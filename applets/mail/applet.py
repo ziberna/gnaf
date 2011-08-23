@@ -91,7 +91,7 @@ class MailApplet(gnaf.Gnaf):
                 notifications.append((
                     None,
                     mail['Subject'],
-                    '<b>From:</b> %s\n<b>Date:</b> %s' % (mail_from, mail['Date'])
+                    '<b>From</b>: %s\n<b>Date</b>: %s' % (mail_from, mail['Date'])
                 ))
         self.notifications = notifications
         return (len(notifications) > 0)
