@@ -68,7 +68,7 @@ def find_applet(user_dir, applet_dir, settings, classname, sett_name):
             try:
                 module = __import__(module_path, globals(), locals(), ['*'], -1 if dir == user_dir else 0)
             except:
-                write('%s\n' %  format_C(' Exception thrown while importing %s ' % applet, '-'))
+                write('%s\n' % format_L_R('%s (%s applet)' % (sett_name, applet), '[IMPORT ERROR]', '', 80, 1))
                 if 'debug' not in settings or settings['debug'] != False:
                     write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
                     traceback.print_exc()
