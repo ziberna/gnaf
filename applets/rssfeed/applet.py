@@ -56,6 +56,7 @@ class RssFeed(gnaf.Gnaf):
                     random.shuffle(entries)
                 num = self.settings.get('entries-num')
                 self.entries = self.entries[:num]
+                self.filter_new()
                 length = self.settings.get('max-title-length')
                 data = []
                 for entry in self.entries:
@@ -74,30 +75,22 @@ class RssFeed(gnaf.Gnaf):
                 return False
             
     def notify(self):
-        entries_new = self.get_new_entries()
-        notifications = []
-        for entry in entries_new:
-            notifications.append((
-                None,
-                '%s' % entry.title,
-                '<b>Author:</b> %s\n<b>Published:</b> %s' % (
-                    entry.author,
-                    entry.published.strftime('%d %b %Y at %H:%M')
-                )
-            ))
-        self.notifications = notifications
-        return (len(notifications) > 0)
+        if len(self.entries_new) == 0:
+            return False
+        title = '%i new feed entries' % len(self.entries_new)
+        body = '\n'.join(['%s... (%s)' % (e.title[:10], e.author) for e in self.entries_new])
+        self.notifications = [(None, title, body)]
+        return True
     
-    def get_new_entries(self):
+    def filter_new(self):
         # return empty list on first run
         if self.entries_old == None:
             self.entries_old = list(self.entries)
-            return []
-        entries_new = list(self.entries)
+            self.entries_new = []
+        self.entries_new = list(self.entries)
         for e_old in self.entries_old:
-            for e_new in entries_new:
+            for e_new in self.entries_new:
                 if e_new.title == e_old.title and e_new.published_str == e_old.published_str:
-                    entries_new.remove(e_new)
+                    self.entries_new.remove(e_new)
                     break
         self.entries_old = list(self.entries)
-        return entries_new
