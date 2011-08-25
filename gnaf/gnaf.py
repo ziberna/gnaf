@@ -91,7 +91,7 @@ class Gnaf:
         gtk.gdk.threads_init()
         global GnafApplets
         for applet in GnafApplets:
-            gobject.idle_add(applet.update_manual)
+            gobject.idle_add(applet.__update__)
         gtk.main()
     
     @staticmethod
@@ -151,7 +151,7 @@ class Gnaf:
         else:
             self.log('initialization', 'ERROR')
             message = 'Error while initializing.\nNext try at %s' \
-                       % time.strftime('%H:%M', self.next_update_at())
+                       % time.strftime('%H:%M', self.next_update_at(False))
             gobject.idle_add(self.set_icon, 'error')
             gobject.idle_add(self.set_tooltip, message)
             gobject.idle_add(self.set_datamenu, [message])
@@ -173,7 +173,8 @@ class Gnaf:
             self.log('update', 'ERROR')
             self.icontype = 'error'
             message = 'Error while updating.\nNext try at %s' \
-                       % time.strftime('%H:%M', self.next_update_at())
+                       % time.strftime('%H:%M', self.next_update_at(False))
+            gobject.idle_add(self.set_datamenu, [message])
             gobject.idle_add(self.set_tooltip, message)
         elif success == False:
           # No updates
@@ -296,6 +297,8 @@ class Gnaf:
     def menu(self, items):
         menu = gtk.Menu()
         for item in items:
+            if type(item).__name__ == 'tuple' and len(item) == 1:
+                item = item[0]
             if type(item).__name__ == 'str':
                 if item == '-':
                     menuItem = gtk.SeparatorMenuItem()
@@ -339,6 +342,8 @@ class Gnaf:
             write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
             traceback.print_exc()
             write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))
+        else:
+            write('%s\n' % format_C(' ENABLE DEBUG OUTPUT ', '~'))
     
     def next_update_at(self, from_id=True):
         if from_id:

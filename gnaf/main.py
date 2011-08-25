@@ -18,18 +18,29 @@ def main():
     # applets
     settings_file = '%s/settings.py' % user_dir
     if os.path.exists(settings_file):
-        import settings
+        try:
+            import settings
+        except:
+            write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
+            traceback.print_exc()
+            write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))
+            write('Error in settings.py. Check the file in ~/.gnaf\n')
+            return
         applets = parse_settings(settings, user_dir, applet_dir)
         applet_count = len(applets)
         if applet_count > 0:
             for applet in applets:
-                if 'enabled' in applet['settings'] and applet['settings']['enabled'] == False:
+                if ('enabled' in applet['settings'] and applet['settings']['enabled'] == False) \
+                    or len(applet['instances']) == 0:
                     applet_count -= 1
                 else:
                     for app in applet['instances']:
                         app(applet['settings'])
-            write('%s\n' % format_C(' Gnaf applets starting (%i total) ' % applet_count, '-'))
-            Gnaf.main()
+            if applet_count > 0:
+                write('%s\n' % format_C(' Gnaf applets starting (%i total) ' % applet_count, '-'))
+                Gnaf.main()
+            else:
+                write('No enabled or valid applets found.\n')
         else:
             write('No applets found. Check settings in ~/.gnaf/setting.py.\n')
     else:

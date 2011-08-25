@@ -47,3 +47,7 @@ def format_C(text, fill='', margin=80, space=0):
         chp[0] = ('{:%s>%i}' % (fill, margin)).format(chp[0])
         chp[-1] = ('{:%s<%i}' % (fill, margin)).format(chp[-1])
         return '\n'.join(chp)
+
+def format_tooltip(tooltip):
+    return '\n'.join(['<b>%s</b>: %s' % (t[0], t[1]) for t in tooltip])
+        
