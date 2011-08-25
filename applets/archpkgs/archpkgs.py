@@ -31,13 +31,14 @@ class ArchPkgs:
     local_dir = 'local'
     current_dir = os.path.dirname(__file__)
     
-    def __init__(self, aur_method=None):
+    def __init__(self, repos, aur_method=None):
         self.aur_method = aur_method
         self.init = Shell('%s/./init.bash %s %s %s' % (self.current_dir,
                                                      self.temp_dir,
                                                      self.pacman_dir,
                                                      self.local_dir))
         self.pacman = (self.init.output == 'start\nsuccess\n')
+        self.repos = repos
     
     def search(self):
         if self.pacman == False:
@@ -80,11 +81,7 @@ class ArchPkgs:
         return (output.split('\n')[0] == 'error: failed to init transaction (unable to lock database)')
     
     def pacman_no_conn(self, output):
-        output = output.split('\n')[1:-1]
-        for o in output:
-            if not o.startswith('error: failed retrieving file'):
-                return False
-        return True
+        return False # old code didn't work
     
     def aur(self):
         if self.aur_method == 'cower':

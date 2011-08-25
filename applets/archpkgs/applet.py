@@ -38,8 +38,8 @@ class ArchPkgsApplet(gnaf.Gnaf):
     }
     
     def initialize(self):
-        self.ArchPkgs = ArchPkgs(self.settings.get('aur'))
         self.repos = self.settings.get('repos')
+        self.ArchPkgs = ArchPkgs(self.repos, self.settings.get('aur'))
         self.pkgs_old = []
         return self.ArchPkgs.pacman
 
