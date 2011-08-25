@@ -70,7 +70,7 @@ class RssFeed(gnaf.Gnaf):
                         )
                     ))
                 self.data = data
-                return True
+                return len(self.entries_new) > 0
             else:
                 return False
             
