@@ -17,7 +17,7 @@
 
 import gnaf
 from temps import Temps
-from gnaf.lib.format import format_L_R, format_tooltip
+from gnaf.lib.format import formatTooltip
 
 class TempsApplet(gnaf.Gnaf):
     settings = {
@@ -29,37 +29,47 @@ class TempsApplet(gnaf.Gnaf):
             'error':None
         },
         'method':'sensors',
-        'critical':75
+        'critical':75,
+        'ignore':[],
+        'alias':{}
     }
     
     def initialize(self):
+        self.method = self.settings.get('method')
+        self.critical_limit = self.settings.get('critical')
+        self.critical = False
+        self.ignore = self.settings.get('ignore')
+        self.alias = self.settings.get('alias')
         return True
     
     def update(self):
-        temps = Temps(self.settings.get('method'))
-        critical = False
-        critical_limit = self.settings.get('critical')
+        temps = Temps(self.method)
+        self.critical = False
         data = []
         templist = []
         fanlist = []
         for temp in temps:
-            id = temp['id']
+            if temp['id'] in self.ignore:
+                continue
+            id = temp['id'] if not temp['id'] in self.alias else self.alias[temp['id']]
             values = []
             tlist = []
             flist = []
             for t in temp['values']:
+                if t['id'] in self.alias:
+                    t['id'] = self.alias[t['id']]
                 if t['value'][-1] == 'C':
                     val = float(t['value'].replace('\xc2\xb0C', ''))
-                    if val > 0:
-                        tlist.append(val)
-                    if val >= critical_limit:
-                        critical = True
+                    tlist.append(val)
+                    if val >= self.critical_limit:
+                        self.critical = True
+                        self.critical_value = val
+                        self.critical_id = t['id']
                 else:
                     val = float(t['value'])
-                    if val > 0:
-                        flist.append(val)
+                    flist.append(val)
                     t['value'] = '%s RPM' % t['value']
-                values.append(format_L_R('%s:' % t['id'], t['value'], '', 40, 1))
+                values.append('%s: %s' % (t['id'], t['value']))
             templist.extend(tlist)
             fanlist.extend(flist)
             data.append((
@@ -67,11 +77,18 @@ class TempsApplet(gnaf.Gnaf):
                 values
             ))
         self.data = data
-        self.tooltip = format_tooltip([
-            ('Temp', '%.1f \xc2\xb0C' % (sum(templist) / len(templist))),
-            ('Fan', '%.1f RPM' % (sum(fanlist) / len(fanlist)))
+        temp_str = 'no information' if len(templist) == 0 else '%.1f\xc2\xb0C' % (sum(templist) / len(templist))
+        fan_str = 'no information' if len(fanlist) == 0 else '%.1f RPM' % (sum(fanlist) / len(fanlist))
+        self.tooltip = formatTooltip([
+            ('Temperatures', temp_str),
+            ('Fan speeds', fan_str)
         ])
-        return critical
+        return self.critical
     
     def notify(self):
-        return None
+        if self.critical:
+            value = self.critical_value
+            id = self.critical_id.capitalize()
+            self.notifications = ['%s is at %.1f\xc2\xb0C!' % (id, value)]
+        return self.critical
+

@@ -15,7 +15,7 @@
 #    along with this program.
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
-from gnaf.lib.shell import Shell
+from gnaf.lib.tools import Shell
 
 def Temps(method):
     if method == 'sensors':
