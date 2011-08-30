@@ -18,6 +18,7 @@
 from feedparser import FeedParser
 import random
 import gnaf
+from gnaf.lib.format import formatTooltip
 
 class RssFeed(gnaf.Gnaf):
     settings = {
@@ -36,8 +37,8 @@ class RssFeed(gnaf.Gnaf):
     }
 
     def initialize(self):
-        url = self.settings.get('url')
-        namespace = self.settings.get('namespace')
+        url = self.settings['url']
+        namespace = self.settings['namespace']
         self.FeedParser = FeedParser(url, namespace)
         self.entries_old = None
         self.tooltip = 'Feed URL: %s' % url
@@ -52,22 +53,22 @@ class RssFeed(gnaf.Gnaf):
             if self.entries == None:
                 return None
             elif len(self.entries) > 0:
-                if self.settings.get('random'):
+                if self.settings['random']:
                     random.shuffle(entries)
-                num = self.settings.get('entries-num')
+                num = self.settings['entries-num']
                 self.entries = self.entries[:num]
                 self.filter_new()
-                length = self.settings.get('max-title-length')
+                length = self.settings['max-title-length']
                 data = []
                 for entry in self.entries:
                     if length != None and len(entry.title) > length:
                         entry.title = '%s...' % entry.title[:length-3]
                     data.append((
                         entry.title,
-                        '<b>Author:</b> %s\n<b>Published:</b> %s' % (
-                            entry.author,
-                            entry.published.strftime('%d %b %Y at %H:%M')
-                        )
+                        formatTooltip([
+                            ('Author', entry.author),
+                            ('Published', entry.published)
+                        ])
                     ))
                 self.data = data
                 return len(self.entries_new) > 0
@@ -78,8 +79,8 @@ class RssFeed(gnaf.Gnaf):
         if len(self.entries_new) == 0:
             return False
         title = '%i new feed entries' % len(self.entries_new)
-        body = '\n'.join(['%s... (%s)' % (e.title[:10], e.author) for e in self.entries_new])
-        self.notifications = [(None, title, body)]
+        body = '\n'.join(['%s... (%s)' % (e.title[:30], e.author) for e in self.entries_new])
+        self.notifications = (title, body)
         return True
     
     def filter_new(self):
