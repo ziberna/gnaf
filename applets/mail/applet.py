@@ -17,7 +17,8 @@
 
 import gnaf
 from mail import Mail
-from gnaf.lib.shell import Shell, bash_quotes
+from gnaf.lib.tools import Shell
+from gnaf.lib.format import formatTooltip, bashQuotes
 
 class MailApplet(gnaf.Gnaf):
     settings = {
@@ -42,13 +43,13 @@ class MailApplet(gnaf.Gnaf):
     def initialize(self):
         sett = self.settings
         self.Mail = Mail(
-            sett.get('username'),
-            sett.get('password'),
-            sett.get('host'),
-            sett.get('port'),
-            sett.get('ssl')
+            sett['username'],
+            sett['password'],
+            sett['host'],
+            sett['port'],
+            sett['ssl']
         )
-        self.mailboxes = sett.get('mailboxes')
+        self.mailboxes = sett['mailboxes']
         self.mails_old = {}
         
         return True
@@ -70,9 +71,12 @@ class MailApplet(gnaf.Gnaf):
             mails = []
             for mail in self.mails[mailbox]:
                 mail_from = mail['From'].replace('<','&lt;').replace('>','&gt;')
-                mails.append((mail['Subject'], self.open_browser,
-                              '<b>From:</b> %s\n<b>Date:</b> %s' %
-                              (mail_from, mail['Date'])
+                mails.append((mail['Subject'],
+                             self.open_browser,
+                             formatTooltip([
+                                ('From', mail_from),
+                                ('Date', mail['Date'])
+                             ])
                 ))
             data.append((
                 '%s (%s)' % (mailbox, len(mails)),
@@ -89,9 +93,11 @@ class MailApplet(gnaf.Gnaf):
             for mail in self.mails_new[mailbox]:
                 mail_from = mail['From'].replace('<','&lt;').replace('>','&gt;')
                 notifications.append((
-                    None,
                     mail['Subject'],
-                    '<b>From</b>: %s\n<b>Date</b>: %s' % (mail_from, mail['Date'])
+                    formatTooltip([
+                        ('From', mail_from),
+                        ('Date', mail['Date'])
+                    ])
                 ))
         self.notifications = notifications
         return (len(notifications) > 0)
@@ -147,8 +153,8 @@ class MailApplet(gnaf.Gnaf):
         return clone
     
     def open_browser(self):
-        url = self.settings.get('url')
+        url = self.settings['url']
         if url != None:
-            xdg_open = 'xdg-open \'%s\'' % bash_quotes(url)
+            xdg_open = "xdg-open '%s'" % bashQuotes(url)
             Shell(xdg_open)
     
