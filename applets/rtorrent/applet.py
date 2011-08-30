@@ -17,7 +17,7 @@
 
 from rtorrent import RTorrent
 import gnaf
-from gnaf.lib.format import format_tooltip
+from gnaf.lib.format import formatTooltip
 
 class RTorrentApplet(gnaf.Gnaf):
     settings = {
@@ -32,8 +32,9 @@ class RTorrentApplet(gnaf.Gnaf):
     }
     
     def initialize(self):
-        self.rtorrent = RTorrent(self.settings.get('server'))
+        self.rtorrent = RTorrent(self.settings['server'])
         self.uncompleted = []
+        self.new = []
         return True
     
     def update(self):
@@ -53,7 +54,7 @@ class RTorrentApplet(gnaf.Gnaf):
                 del tooltip[0]
             data.append((
                 '%s (%.0f%%)' % (t['name'], t['percentage']),
-                format_tooltip(tooltip)
+                formatTooltip(tooltip)
             ))
         self.data = data
         self.tooltip = '%i torrent(s)' % len(self.torrents)
@@ -64,7 +65,7 @@ class RTorrentApplet(gnaf.Gnaf):
             return False
         title = '%i torrent(s) completed' % len(self.new)
         body = '\n'.join(t['name'] for t in self.new)
-        self.notifications = [(None, title, body)]
+        self.notifications = (title, body)
         self.uncompleted = [t for t in self.torrents if t['percentage'] < 100]
         return True
     
@@ -78,6 +79,7 @@ class RTorrentApplet(gnaf.Gnaf):
                     completed.remove(c)
                     break
         self.uncompleted = [t for t in self.torrents if t['percentage'] < 100]
+    
 
 def bytes_to_str(bytes):
     bytes = float(bytes)
