@@ -38,8 +38,8 @@ class ArchPkgsApplet(gnaf.Gnaf):
     }
     
     def initialize(self):
-        self.repos = self.settings.get('repos')
-        self.ArchPkgs = ArchPkgs(self.repos, self.settings.get('aur'))
+        self.repos = self.settings['repos']
+        self.ArchPkgs = ArchPkgs(self.repos, self.settings['aur'])
         self.pkgs_old = []
         return self.ArchPkgs.pacman
 
@@ -50,7 +50,7 @@ class ArchPkgsApplet(gnaf.Gnaf):
         count = len(self.pkgs)
         if count == 0:
             self.tooltip = 'No updates, your system is up-to-date!'
-            self.data = ['What, you think I\'m lying?']
+            self.data = 'What, you think I\'m lying?'
             return False
         else:
             self.tooltip = '%i update(s)!' % count
@@ -83,7 +83,7 @@ class ArchPkgsApplet(gnaf.Gnaf):
                     continue
                 body += '<b>%s (%i)</b>:\n' % (repo, len(repo_pkgs))
                 body += ''.join(['  %s (%s -> %s)\n' % (p.name, p.version_old, p.version) for p in repo_pkgs])
-            self.notifications = [(None, title, body)]
+            self.notifications = (title, body)
             return True
         else:
             return False

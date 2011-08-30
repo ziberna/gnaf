@@ -16,7 +16,7 @@
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
 import os
-from gnaf.lib.shell import Shell
+from gnaf.lib.tools import Shell
 
 class Package:
     def __init__(self, name, version=None, version_old=None, repo=None):
