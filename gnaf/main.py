@@ -1,107 +1,166 @@
-import os
+#    GNAF (Gtk Notification Applet Framework)
+#    Copyright (C) 2011 Kantist
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.
+#    If not, see http://www.gnu.org/licenses/gpl-3.0.html
+
+import os; exists = os.path.exists
 import sys
-import traceback
-write = sys.stdout.write
+
 from gnaf import Gnaf
-from lib.format import format_L_R, format_C
+from lib.write import writeln, debug, logC, logLR
+from lib.istype import *
+
 
 def main():  
-    # dirs
-    user_dir, this_dir, applet_dir = get_paths()
+    # dirs, files
+    user_dir, this_dir, applet_dir = dirs()
+    settings_file = user_dir + '/settings.py'
+    
     # python paths
     sys.path.insert(0, user_dir)
     sys.path.insert(1, applet_dir)
+    
     # gnaf paths
     Gnaf.user_dir = user_dir
     Gnaf.this_dir = this_dir
     Gnaf.applet_dir = applet_dir
-    # applets
-    settings_file = '%s/settings.py' % user_dir
-    if os.path.exists(settings_file):
-        try:
-            import settings
-        except:
-            write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
-            traceback.print_exc()
-            write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))
-            write('Error in settings.py. Check the file in ~/.gnaf\n')
-            return
-        applets = parse_settings(settings, user_dir, applet_dir)
-        applet_count = len(applets)
-        if applet_count > 0:
-            for applet in applets:
-                if ('enabled' in applet['settings'] and applet['settings']['enabled'] == False) \
-                    or len(applet['instances']) == 0:
-                    applet_count -= 1
-                else:
-                    for app in applet['instances']:
-                        app(applet['settings'])
-            if applet_count > 0:
-                write('%s\n' % format_C(' Gnaf applets starting (%i total) ' % applet_count, '-'))
-                Gnaf.main()
-            else:
-                write('No enabled or valid applets found.\n')
-        else:
-            write('No applets found. Check settings in ~/.gnaf/setting.py.\n')
-    else:
-        write('No settings found. Create %s.' % settings_file)
+    
+    # settings
+    if not exists(settings_file):
+        writeln('No settings file found. Create %s.' % settings_file)
+        return False
+    try:
+        import settings
+    except:
+        debug()
+        writeln('Error in settings file. Check %s.' % settings_file)
+        return False
+    
+    # find applets
+    applets = parse_settings(settings, user_dir, applet_dir)
+    count = len(applets)
+    if count == 0:
+        writeln('No applets found. Check %s.' % settings_file)
+        return False
+    
+    # start applets
+    for applet in applets:
+        if not applet_enabled(applet):
+            count -= 1
+            continue
+        
+        for instance in applet['instances']:
+            instance(applet['settings'])
+    
+    if count == 0:
+        writeln('No enabled or valid applets found.')
+        return False
+    
+    # start GUI
+    logC('Gnaf applets starting (%i total)' % count)
+    Gnaf.main()
 
-def get_paths():
+
+def dirs():
     user_dir = '%s/.gnaf' % os.getenv('HOME')
     this_dir = os.path.abspath(os.path.dirname(__file__))
     applet_dir = '%s/applets' % this_dir
     return user_dir, this_dir, applet_dir
 
+
 def parse_settings(settings, user_dir, applet_dir):
     applets = []
     variables = vars(settings)
-    for var in variables:
-        sett = variables[var]
-        if type(sett).__name__ == 'dict' and 'applet' in sett:
-            classname = sett['class'] if 'class' in sett else None
-            applet = {
-                'instances': find_applet(user_dir, applet_dir, sett, classname, var),
-                'settings': sett
-            }
-            applets.append(applet)
-    return applets
     
-def find_applet(user_dir, applet_dir, settings, classname, sett_name):
-    applets = []
-    applet = settings['applet']
-    # check user and applet dirs
-    for dir in [user_dir, applet_dir]:
-        # check if applet exists
-        if os.path.exists('%s/%s/__init__.py' % (dir, applet)) \
-        and os.path.exists('%s/%s/applet.py' % (dir, applet)):
-            # import module and get its variables
-            module_path = ('%s.applet' % applet) if dir == user_dir else ('gnaf.applets.%s.applet' % applet)
-            try:
-                module = __import__(module_path, globals(), locals(), ['*'], -1 if dir == user_dir else 0)
-            except:
-                write('%s\n' % format_L_R('%s (%s applet)' % (sett_name, applet), '[IMPORT ERROR]', '', 80, 1))
-                if 'debug' not in settings or settings['debug'] != False:
-                    write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
-                    traceback.print_exc()
-                    write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))
-                continue
-            variables = vars(module)
-            # search for a certain variable
-            if type(classname).__name__ == 'str' and classname in variables:
-                obj = variables[classname]
-                applets.append(obj)
-            # search for variables as defined in a list
-            elif type(classname).__name__ == 'list':
-                objs = [variables[cn] for cn in classname if cn in variables]
-                for obj in objs:
-                    applets.append(obj)
-            # except all variables
-            else:
-                applets.extend(variables[var] for var in variables)
-    # filter variables for subclasses of Gnaf
-    applets = [a for a in applets if type(a).__name__ == 'classobj' and issubclass(a, Gnaf)]
-    for a in applets:
-        write('%s\n' % format_L_R('%s: class %s (from %s)' % (sett_name, a.__name__, applet), '[FOUND APPLET]', '', 80, 1))
-        a.name = applet
-        a.settings_name = sett_name
+    for var in variables:
+        setting = variables[var]
+        if not isdict(setting) or 'applet' not in setting:
+            continue
+        
+        instances = find_applet(user_dir, applet_dir, setting, var)
+        if len(instances) == 0:
+            continue
+        
+        applet = {
+            'instances': instances,
+            'settings': setting
+        }
+        applets.append(applet)
+    
     return applets
+
+
+def find_applet(user_dir, applet_dir, setting, setting_name):
+    applets = []
+    
+    applet_name = setting['applet']
+    class_name = None if not 'class' in setting else setting['class']
+    
+    user = applet_info(user_dir, 'user')
+    installed = applet_info(applet_dir, 'installed')
+    
+    # search user and applet directories
+    for source in [user, installed]:
+        path = source['path'] + '/' + applet_name + '/'
+        
+        if not exists(path + '__init__.py') or not exists(path + 'applet.py'):
+            continue
+        
+        # import module and get its variables
+        try:
+            module = applet_import(applet_name, source['type'])
+        except:
+            logLR('%s (%s)' % (setting_name, applet_name), 'IMPORT ERROR')
+            if 'debug' not in setting or setting['debug']:
+                debug()
+            continue
+        
+        # extract variables
+        variables = vars(module)
+        # search for a certain variable
+        if isstr(class_name) and class_name in variables:
+            applets.append(variables[class_name])
+        # search for variables as defined in a list
+        elif islist(class_name):
+            applets.extend(variables[c] for c in class_name if c in variables)
+        # except all variables
+        else:
+            applets.extend(variables[var] for var in variables)
+    
+    # filter Gnaf classes
+    applets = [applet for applet in applets if isgnaf(applet)]
+    for applet in applets:
+        logLR('%s: class %s (from %s)' % (setting_name, name(applet), applet_name), 'FOUND APPLET')
+        applet.setting_name = setting_name
+        applet.name = applet_name
+    return applets
+
+
+def applet_enabled(applet):
+    return ('enabled' not in applet['settings'] or applet['settings']['enabled'] == True)
+
+
+def applet_info(dir, applet_type):
+    return {'path':dir,'type':applet_type}
+
+
+def applet_import(name, applet_type):
+    if applet_type == 'user':
+        path = name + '.applet'
+        level = -1
+    elif applet_type == 'installed':
+        path = 'gnaf.applets.' + name + '.applet'
+        level = 0
+    return __import__(path, globals(), locals(), ['*'], level)

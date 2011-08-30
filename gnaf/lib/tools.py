@@ -15,7 +15,41 @@
 #    along with this program.
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
+import time
+import thread as threading
 import subprocess as sp
+from gnaf.lib.istype import isdict, islist
+
+def id(object=None):
+    t = time.time()
+    if object != None:
+        object.id = t
+    return t
+
+def thread(function, *params):
+    threading.start_new(function, params)
+    
+def timeout(seconds, function, *params):
+    time.sleep(seconds)
+    function(*params)
+
+def threadTimeout(seconds, function, *params):
+    thread(lambda s=seconds, f=function, p=params: timeout(s,f,*p))
+
+def tolist(value):
+    if not islist(value):
+        value = [value]
+    return value
+
+def dictmerge(*dicts):
+    merge = {}
+    for dict in dicts:
+        for key in dict:
+            if isdict(dict[key]) and key in merge and isdict(merge[key]):
+                merge[key] = dictmerge(merge[key], dict[key])
+            else:
+                merge[key] = dict[key]
+    return merge
 
 class Shell:
     def __init__(self, command):
@@ -24,6 +58,3 @@ class Shell:
         self.pid = p.pid
         self.output, self.error = p.communicate()
         self.failed = p.returncode
-
-def bash_quotes(str):
-    return str.replace("'", "'\\''")

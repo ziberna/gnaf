@@ -15,12 +15,14 @@
 #    along with this program.
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
+import time
+
 def chop(seq, length, start=0):
     l = [seq[:start]] if start > 0 else []
     l.extend([seq[i:i+length] for i in range(start, len(seq), length)])
     return l
 
-def format_L_R(text1, text2, fill='', margin=80, space=0):
+def formatLR(text1, text2, fill='', space=0, margin=80):
     l1 = len(text1) % margin
     l2 = len(text2) % margin
     if l1 + l2 + space <= margin:
@@ -32,8 +34,9 @@ def format_L_R(text1, text2, fill='', margin=80, space=0):
         text2 = ('{:%s>%i}' % (fill, margin)).format(text2)
     return '%s%s' % (text1, text2)
 
-def format_C(text, fill='', margin=80, space=0):
-    l = len(text) + 2 * space
+def formatC(text, fill='', space=0, margin=80):
+    text = ' ' * space + text + ' ' * space
+    l = len(text)
     if l <= margin:
         return ('{:%s^%i}' % (fill, margin)).format(text)
     elif l <= margin * 2:
@@ -48,6 +51,12 @@ def format_C(text, fill='', margin=80, space=0):
         chp[-1] = ('{:%s<%i}' % (fill, margin)).format(chp[-1])
         return '\n'.join(chp)
 
-def format_tooltip(tooltip):
+def formatTooltip(tooltip):
     return '\n'.join(['<b>%s</b>: %s' % (t[0], t[1]) for t in tooltip])
-        
+
+def bashQuotes(str):
+    return str.replace("'", "'\\''")
+
+def timestamp(unix_epoch=None):
+    if unix_epoch == None: unix_epoch = time.time()
+    return time.strftime('%H:%M:%S', time.localtime(unix_epoch))

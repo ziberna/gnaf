@@ -15,340 +15,320 @@
 #    along with this program.
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
-import pygtk
-import gtk
-import gobject
-import thread
 import time
 import sys
 import os
-import traceback
-write = sys.stdout.write
 
-from lib.dictmerge import DictMerge
-from lib.shell import Shell, bash_quotes
-from lib.format import format_L_R, format_C
+import lib.gui as gui
+from lib.tools import id, tolist, dictmerge, thread, timeout, threadTimeout
+from lib.write import logC, logTime, debug, writeln
+from lib.format import timestamp
 
 GnafApplets = []
 
-class Gnaf:
-    running = False
-    updating = False
-    enabled = True
-    
-    settings = {}
-    name = ''
-    
-  #::Initialization methods
+class Gnaf(object):    
     def __init__(self, settings):
-        # settings initialization
-        self.settings = DictMerge(settings, self.settings)
-        self.interval = int(self.settings.get('interval') * 60 * 1000)
+        self.settings = dictmerge(self.settings, settings)
+        self.interval = self.settings['interval'] * 60
+        # Flags and IDs initialization
+        self.flag_init()
         # GUI initialization
         self.icon_init()
         self.tooltip_init()
-        self.contextmenu_init()
-        self.datamenu_init()
+        self.data_init()
+        self.context_init()
         self.notifications_init()
-        # final
+        # Final
         global GnafApplets
         GnafApplets.append(self)
     
-    def icon_init(self):
-        self.icon = gtk.StatusIcon()
-        self.icontype = 'idle'
-        self.set_icon()
-        self.icon.connect('activate', self.leftclick)
-        self.icon.connect('popup-menu', self.rightclick)
+    def flag_init(self):
+        self.enabled = True
+        self.running = True
+        self.initialized = False
+        self.initializing = False
+        self.initialize_id = 0
+        self.updating = False
+        self.update_id = 0
+        self.notify_enabled = (not 'notify' in self.settings or self.settings['notify'])
+        self.appletting = False
     
-    def contextmenu_init(self):
-        self.context = [
-            ('Update now', self.update_manual),
-            ('Clear data', self.cleardata),
-            ('Mark as idle', self.set_icon_idle),
+    # Main methods #
+    @staticmethod
+    def main():
+        gui.ThreadsInit()
+        global GnafApplets
+        for applet in GnafApplets:
+            thread(applet.run)
+        gui.Main()
+    
+    @staticmethod
+    def main_quit():
+        logC('Gnaf applets quitting')
+        global GnafApplets
+        for applet in list(GnafApplets):
+            applet.quit()
+    
+    def quit(self):
+        self.log(status='QUIT')
+        self.enabled = False
+        self.running = False
+        self.visible = False
+        global GnafApplets
+        GnafApplets.remove(self)
+        if len(GnafApplets) == 0:
+            gui.Quit()
+    
+    def enable_disable(self):
+        self.enabled = not self.enabled
+        self.log('Enabled', 'TRUE' if self.enabled else 'FALSE')
+        self.context = []
+    
+    def run(self, update_id=None):
+        if not self.running:
+            return
+        elif not self.enabled:
+            threadTimeout(self.interval, self.run)
+        elif not self.initialized and not self.initializing:
+            self.initialize_applet()
+        elif not self.updating and update_id == self.update_id:
+            self.update_applet()
+    
+    def clear(self):
+        self.log('Clearing data', '...')
+        # Flags and IDs initialization
+        self.flag_init()
+        # GUI initialization
+        self.icon = 'idle'
+        self.tooltip = None
+        self.data = 'Not updated yet.'
+        self._context_time = []
+        self._context_applet = []
+        self.context = []
+        self.log('Data clearance', 'DONE')
+    
+    def run_manual(self):
+        self.update_id = id()
+        self.run(self.update_id)
+    
+    def initialize_applet(self):
+        # Set flags and GUI elements
+        self.initializing = True
+        self.log('Initializing', '...')
+        self.icon = 'updating'
+        self.tooltip = 'Initializing...'
+        # Call applet's initialize method
+        self.initialize_id = id()
+        try:
+            self.appletting = True
+            success = self.initialize()
+        except:
+            success = None
+            self.initialize_id = 0
+            self.debug()
+        finally:
+            self.appletting = False
+        # Determine success
+        if success:
+            self.initialized = True
+            self.log('Initialization', 'TRUE')
+            self.tooltip = 'Initialized.'
+            self.update_id = id()
+            thread(self.run, self.update_id)
+        else:
+            self.log('Initialization', 'ERROR')
+            self.icon = 'error'
+            self.tooltip = self.error_message()
+            threadTimeout(self.interval, self.run)
+        # Final
+        self.initializing = False
+    
+    def update_applet(self):
+        # Set flags and GUI elements
+        self.updating = True
+        self.log('Updating', '...')
+        self.icon = 'updating'
+        self.tooltip = 'Updating...'
+        # Call applet's update method
+        self.update_id = id()
+        try:
+            self.appletting = True
+            success = self.update()
+        except:
+            success = None
+            self.update_id = 0
+            self.debug()
+        finally:
+            self.appletting = False
+        # Determine success
+        if success == True:
+            self.log('Update', 'TRUE')
+            self.icon = 'new'
+        elif success == False:
+            self.log('Update', 'FALSE')
+            self.icon = 'idle'
+        else:
+            self.log('Update', 'ERROR')
+            self.icon = 'error'
+            self.tooltip = self.error_message()
+        self.context = []
+        # Add next update interval
+        self.update_id = id()
+        threadTimeout(self.interval, self.run, self.update_id)
+        # Final
+        self.updating = False
+        if self.notify_enabled:
+            self.notify_applet()
+        gui.UpdateCount()
+    
+    def notify_applet(self):
+        try:
+            success = self.notify()
+        except:
+            success = None
+            self.debug()
+        
+        if success == True:
+            self.log('Notify', 'TRUE')
+        elif success == False:
+            self.log('Notify', 'FALSE')
+        else:
+            self.log('Notify', 'ERROR')
+    
+    # GUI elements #
+    @property
+    def icon(self): return self._icon.type
+    
+    @icon.setter
+    def icon(self, value):
+        if not self.was_set(self._icon):
+            self._icon.type = value
+    
+    def icon_init(self):
+        self.paths = [
+            '%s/%s' % (Gnaf.user_dir, self.name),
+            '%s' % (Gnaf.user_dir),
+            '%s/%s/icons' % (Gnaf.applet_dir, self.name),
+            '%s/%s' % (Gnaf.applet_dir, self.name),
+            '%s' % (Gnaf.applet_dir)
+        ]
+        self._icon = gui.Icon(paths=self.paths, types=self.settings['icon'])
+        self._icon.type = 'idle'
+    
+    @property
+    def visible(self): return self._visible
+    
+    @visible.setter
+    def visible(self, value):
+        self._visible = value
+        self._icon.visible = value
+    
+    @property
+    def tooltip(self): return self._tooltip.text
+    
+    @tooltip.setter
+    def tooltip(self, value):
+        if not self.was_set(self._tooltip):
+            self._tooltip.text = value
+    
+    def tooltip_init(self):
+        self._tooltip = self._icon._tooltip
+    
+    @property
+    def data(self): return self._data.items
+    
+    @data.setter
+    def data(self, value):
+        value = tolist(value)
+        if not self.was_set(self._data):
+            self._data.items = value
+    
+    def data_init(self):
+        self._data = self._icon._leftmenu
+        self.data = 'Not updated yet.'
+    
+    @property
+    def context(self): return self._context_applet
+    
+    @context.setter
+    def context(self, value):
+        value = tolist(value)
+        if self.appletting:
+            self._context_applet = value + ['-']
+        elif self.updating:
+            self._context_time = ['Next update at %s' % timestamp(id() + self.interval), '-']
+        self._context_default = [
+            ('Update now', self.run_manual),
+            ('Clear data', self.clear),
+            ('Mark as idle', self.mark_as_idle) if self.icon != 'idle' else None,
+            ('%s notifications' % ('Disable' if self.notify_enabled else 'Enable'), self.notiy_enable_disable),
             '-',
             ('Disable' if self.enabled else 'Enable', self.enable_disable),
             ('Quit', self.quit),
             ('Quit all', Gnaf.main_quit)
         ]
-        self.contextmenu = self.menu(self.context)
+        self._context.items = self._context_applet + self._context_time + self._context_default
     
-    def datamenu_init(self):
-        self.data = ['Not updated yet...']
-        self.set_datamenu()
+    def context_init(self):
+        self._context = self._icon._rightmenu
+        self._context_applet = []
+        self._context_time = []
+        self.context = []
     
-    def tooltip_init(self):
-        self.tooltip = 'Not updated yet...'
-        self.set_tooltip()
+    @property
+    def notifications(self): return self._notifications.items
+    
+    @notifications.setter
+    def notifications(self, value):
+        if not self.notify_enabled:
+            return
+        value = tolist(value)
+        if not self.was_set(self._notifications):
+            self._notifications.items = value
     
     def notifications_init(self):
-        self.notifications = []
+        iconpath = self._icon.path_from_type('new')
+        self._notifications = gui.Notifier(auto=True,icon=iconpath)
     
-  #::Main methods
-    @staticmethod
-    def main():
-        pygtk.require('2.0')
-        gtk.gdk.threads_init()
-        global GnafApplets
-        for applet in GnafApplets:
-            gobject.idle_add(applet.__update__)
-        gtk.main()
+    # Helper methods #
+    def was_set(self, target):
+        if self.appletting:
+            return False
+        if self.updating:
+            return self.update_id > 0 and self.update_id < target.id
+        if self.initializing:
+            return self.initialize_id > 0 and self.initialize_id < target.id
+        return False
     
-    @staticmethod
-    def main_quit():
-        write('%s\n' % format_C(' Gnaf applets quitting ', '-'))
-        for applet in list(GnafApplets):
-            applet.quit()
-    
-    def quit(self):
-        self.enabled = False
-        self.icon.set_visible(False)
-        global GnafApplets
-        GnafApplets.remove(self)
-        self.log('', 'QUIT')
-        if len(GnafApplets) == 0:
-            gtk.main_quit()
-    
-    def enable_disable(self):
-        self.enabled = not self.enabled
-        self.icontype = 'idle'
-        self.set_icon()
-        self.contextmenu_init()
-        self.log('', 'ENABLED' if self.enabled else 'DISABLED')
-        
-    def __update__(self, id=None):
-        if self.enabled:
-            if self.running:
-                if not self.updating and id == self.update_id:
-                    thread.start_new(self.updatedata, ())
-            else:
-                thread.start_new(self.initializedata, ())
+    def log(self, subject=None, status=None):
+        if subject != None:
+            subject = '%s: %s' % (self.setting_name, subject)
         else:
-            gobject.timeout_add(self.interval, self.__update__)
+            subject = self.setting_name
+        logTime(subject, status)
     
-    def update_manual(self):
-        if not self.updating:
-            self.update_id = int(time.time())
-            self.__update__(self.update_id)
+    def debug(self):
+        if 'debug' not in self.settings or self.settings['debug']:
+            debug()
     
-    def update_id_set(self):
-        self.update_id = int(time.time())
-    
-    #> separate thread !
-    def initializedata(self):
-        gobject.idle_add(self.set_tooltip, 'Initializing...')
-        self.log('initializing', '...')
-        try:
-            success = self.initialize()
-        except:
-            self.debug_output()
-            success = False
-        if success:
-            self.log('initialization', 'DONE')
-            self.running = True
-            self.update_id_set()
-            gobject.idle_add(self.__update__, self.update_id)
+    def error_message(self):
+        if self.initializing:
+            message = 'Error while initializing.'
+        elif self.updating:
+            message = 'Error while updating.'
         else:
-            self.log('initialization', 'ERROR')
-            message = 'Error while initializing.\nNext try at %s' \
-                       % time.strftime('%H:%M', self.next_update_at(False))
-            gobject.idle_add(self.set_icon, 'error')
-            gobject.idle_add(self.set_tooltip, message)
-            gobject.idle_add(self.set_datamenu, [message])
-            gobject.timeout_add(self.interval, self.__update__)
+            message = 'Error occurred.'
+        if self.updating or self.initializing:
+            time = timestamp(id() + self.interval)
+            message += ' Next try at %s' % time
+        return message
     
-    #> separate thread !
-    def updatedata(self):
-        gobject.idle_add(self.set_icon, 'updating')
-        gobject.idle_add(self.set_tooltip, 'Updating...')
-        self.updating = True
-        self.log('updating', '...')
-        try:
-            success = self.update()
-        except:
-            self.debug_output()
-            success = None
-        if success == None:
-          # Error
-            self.log('update', 'ERROR')
-            self.icontype = 'error'
-            message = 'Error while updating.\nNext try at %s' \
-                       % time.strftime('%H:%M', self.next_update_at(False))
-            gobject.idle_add(self.set_datamenu, [message])
-            gobject.idle_add(self.set_tooltip, message)
-        elif success == False:
-          # No updates
-            self.log('update', 'NO UPDATES')
-            self.icontype = 'idle'
-            gobject.idle_add(self.set_datamenu)
-            gobject.idle_add(self.set_tooltip)
-        else:
-          # Updates
-            self.log('update', 'NEW')
-            self.icontype = 'new'
-            gobject.idle_add(self.set_datamenu)
-            gobject.idle_add(self.set_tooltip)
-            self.notifydata()
-        gobject.idle_add(self.set_icon)
-        # Final
-        self.update_id_set()
-        gobject.timeout_add(self.interval, self.__update__, self.update_id)
-        self.updating = False
+    def mark_as_idle(self):
+        self.icon = 'idle'
+        self.context = []
     
-    def notifydata(self):
-        if self.settings.get('notify') != False:
-            try:
-                success = self.notify()
-            except:
-                success = None
-                self.debug_output()
-            if success:
-                self.notify_send()
-        
-    def cleardata(self):
-        self.log('clearing data', '...')
-        self.running = False
-        self.updating = False
-        self.enabled = True
-        self.set_icon_idle()
-        self.tooltip_init()
-        self.contextmenu_init()
-        self.datamenu_init()
-        self.notifications_init()
-        self.log('clear data', 'DONE')
-    
-  #::Icon, tooltip and notification methods
-    def set_icon(self, type=None):
-        if type == None:
-            type = self.icontype
-        filename = self.settings.get('icon', type)
-        self.set_icon_fromfile(filename)
-    
-    def set_icon_fromfile(self, filename):
-        path = self.get_icon_path_fromfile(filename)
-        self.set_icon_frompath(path)
-    
-    def set_icon_frompath(self, path):
-        self.icon.set_from_file(path)
-    
-    def set_icon_idle(self):
-        self.set_icon('idle')
-    
-    def get_icon_path(self, type=None):
-        if type == None:
-            type = self.icontype
-        filename = self.settings.get('icon', type)
-        return self.get_icon_path_fromfile(filename)
-    
-    def get_icon_path_fromfile(self, filename):
-        paths = [
-            '%s/%s/%s' % (Gnaf.user_dir, self.name, filename),
-            '%s/%s' % (Gnaf.user_dir, filename),
-            '%s/%s/icons/%s' % (Gnaf.applet_dir, self.name, filename),
-            '%s/%s/%s' % (Gnaf.applet_dir, self.name, filename),
-            '%s/%s' % (Gnaf.applet_dir, filename)
-        ]
-        for path in paths:
-            if os.path.exists(path):
-                return path
-    
-    def set_tooltip(self, text=None):
-        if text == None:
-            text = self.tooltip
-        self.icon.set_tooltip_markup(text)
-    
-    def set_datamenu(self, data=None):
-        if data == None:
-            data = self.data
-        self.datamenu = self.menu(data)
-    
-    def notify_send(self):
-        if self.settings.get('notifications') == False:
-            return
-        icon_new = self.get_icon_path('new')
-        for note in self.notifications:
-            if type(note).__name__ == 'str':
-                n = bash_quotes(note)
-                command = "notify-send -i '%s' '%s'" % (icon_new, n)
-            elif type(note).__name__ == 'tuple':
-                icon = note[0] if note[0] != None else icon_new
-                n1 = bash_quotes(note[1])
-                if len(note) == 2:
-                    command = "notify-send -i '%s' '%s'" % (icon, n1)
-                elif len(note) >= 3:
-                    n2 = bash_quotes(note[2])
-                    command = "notify-send -i '%s' '%s' '%s'" % (icon, n1, n2)
-            else:
-                continue
-            Shell(command)
-        self.notifications = []
-    
-  #::Interaction methods
-    def leftclick(self, icon):
-        button = 1
-        time = gtk.get_current_event_time()
-        self.datamenu.popup(None, None, gtk.status_icon_position_menu, button,
-                            time, self.icon)
-    
-    def rightclick(self, icon, button, time):
-        self.contextmenu.popup(None, None, gtk.status_icon_position_menu,
-                               button, time, self.icon)
-    
-    def menu(self, items):
-        menu = gtk.Menu()
-        for item in items:
-            if type(item).__name__ == 'tuple' and len(item) == 1:
-                item = item[0]
-            if type(item).__name__ == 'str':
-                if item == '-':
-                    menuItem = gtk.SeparatorMenuItem()
-                else:
-                    menuItem = gtk.MenuItem(item)
-            else:
-                menuItem = gtk.MenuItem(item[0])
-                if type(item[1]).__name__ == 'list':
-                    subMenu = self.menu(item[1])
-                    menuItem.set_submenu(subMenu)
-                    if len(item) == 3:
-                        menuItem.set_tooltip_markup(item[2])
-                elif type(item[1]).__name__ == 'str':
-                    menuItem.set_tooltip_markup(item[1])
-                elif type(item[1]).__name__ == 'instancemethod' or \
-                     type(item[1]).__name__ == 'function':
-                    if len(item) == 3 and type(item[2]).__name__ == 'tuple':
-                        menuItem.connect('activate', lambda s, f=item[1], a=item[2]: f(*a))
-                    else:
-                        menuItem.connect('activate', lambda s, f=item[1]: f())
-                        if len(item) == 3:
-                            menuItem.set_tooltip_markup(item[2])
-            menu.append(menuItem)
-        menu.show_all()
-        return menu
-    
-  #::Log methods
-    def log(self, type, status=None):
-        message = '[%s] %s: %s' % (
-            time.strftime('%H:%M:%S'),
-            self.settings_name,
-            type
-        )
-        if status != None:
-            status = '[%s]' % status
-            message = format_L_R(message, status, '', 80, 1)
-        write('%s\n' % message)        
-    
-    def debug_output(self):
-        if self.settings.get('debug') != False:
-            write('%s\n' % format_C(' DEBUG OUTPUT ', '*'))
-            traceback.print_exc()
-            write('%s\n' % format_C(' END DEBUG OUTPUT ', '*'))
-        else:
-            write('%s\n' % format_C(' ENABLE DEBUG OUTPUT ', '~'))
-    
-    def next_update_at(self, from_id=True):
-        if from_id:
-            last = self.update_id
-        else:
-            last = time.time()
-        return time.localtime(last + self.interval / 1000)
-        
+    def notiy_enable_disable(self):
+        self.notify_enabled = not self.notify_enabled
+        self.log('Notifications enabled', 'TRUE' if self.notify_enabled else 'FALSE')
+        self.context = []
+
