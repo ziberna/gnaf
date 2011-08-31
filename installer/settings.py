@@ -1,10 +1,10 @@
 # Generic example:
 WhateverYouLike = { # you can select your own custom name for an applet instance
-    'applet':'rssfeed' # which applet to use for this instance (necessary)
-    'interval':60 # interval of updates in minutes (default: set by applet)
-    'debug':True # traceback output (default: True)
-    'notify':True # desktop notifications (default: True)
-    'enabled':False # (default: True)
+    'applet':'rssfeed', # which applet to use for this instance (necessary)
+    'interval':60, # interval of updates in minutes (default: set by applet)
+    'debug':True, # traceback output (default: True)
+    'notify':True, # desktop notifications (default: True)
+    'enabled':False, # (default: True)
     'icon':{'new':'myicon.png'} # dictionary of your custom icons (default: set by applet)
 }
 
