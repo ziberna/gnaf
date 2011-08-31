@@ -23,23 +23,34 @@ class TempsApplet(gnaf.Gnaf):
     settings = {
         'interval':3,
         'icon':{
-            'new':None,
-            'updating':None,
-            'idle':None,
-            'error':None
+            'error':'temp.png',
+            'temp1':'temp1.png',
+            'temp2':'temp2.png',
+            'temp3':'temp3.png',
+            'temp4':'temp4.png',
+            'temp5':'temp5.png'
         },
         'method':'sensors',
         'critical':75,
+        'low':20,
         'ignore':[],
         'alias':{}
     }
     
     def initialize(self):
-        self.method = self.settings.get('method')
-        self.critical_limit = self.settings.get('critical')
+        self.method = self.settings['method']
+        self.critical_limit = self.settings['critical']
+        low = self.settings['low']
+        step = float(self.critical_limit - low) / 4
+        self.steps = {
+            '1':low + step * 0.5,
+            '2':low + step * 1.5,
+            '3':low + step * 2.5,
+            '4':low + step * 3.5
+        }
         self.critical = False
-        self.ignore = self.settings.get('ignore')
-        self.alias = self.settings.get('alias')
+        self.ignore = self.settings['ignore']
+        self.alias = self.settings['alias']
         return True
     
     def update(self):
@@ -76,9 +87,19 @@ class TempsApplet(gnaf.Gnaf):
                 id,
                 values
             ))
+        temp_avg = sum(templist) / len(templist)
+        fan_avg = sum(fanlist) / len(fanlist)
+        
+        step = '5'
+        for key in self.steps:
+            if temp_avg < self.steps[key]:
+                step = key
+                break
+        self.icon = 'temp' + step
+        
         self.data = data
-        temp_str = 'no information' if len(templist) == 0 else '%.1f\xc2\xb0C' % (sum(templist) / len(templist))
-        fan_str = 'no information' if len(fanlist) == 0 else '%.1f RPM' % (sum(fanlist) / len(fanlist))
+        temp_str = 'no information' if len(templist) == 0 else '%.1f\xc2\xb0C' % temp_avg
+        fan_str = 'no information' if len(fanlist) == 0 else '%.1f RPM' % fan_avg
         self.tooltip = formatTooltip([
             ('Temperatures', temp_str),
             ('Fan speeds', fan_str)
@@ -89,6 +110,5 @@ class TempsApplet(gnaf.Gnaf):
         if self.critical:
             value = self.critical_value
             id = self.critical_id.capitalize()
-            self.notifications = ['%s is at %.1f\xc2\xb0C!' % (id, value)]
+            self.notifications = '%s is at %.1f\xc2\xb0C!' % (id, value)
         return self.critical
-
