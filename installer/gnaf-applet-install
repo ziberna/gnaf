@@ -1,20 +1,47 @@
 #!/bin/bash
-gnaf_dir="/usr/lib/python2.7/site-packages/gnaf"
-settings_dir="${HOME}/.gnaf/settings.py"
-if [ ! -d "$gnaf_dir" ]; then
-    echo 'Install gnaf first.'    
+OfficialApplets=("mail" "rssfeed" "archpkgs" "temps" "rtorrent")
+
+if [ "${1}" == "" ]; then
+    echo -e "\nSpecify applet name, e.g. to install mail applet run:"
+    echo -e "\e[1;34m./gnaf-applet-install \e[1;35mmail\e[m\n"
+    echo "Official applets:"
+    for OffApp in "${OfficialApplets[@]}"; do
+        echo " - ${OffApp}"
+    done
+    echo ""
+    exit 1
 else
-    if [ "$1" == "" ]; then
-        echo 'No applet name given.'
-    else
-        applet=$1
-        applet_repo="git://github.com/Kantist/gnaf-${applet}.git"
-        git clone "${applet_repo}"
-        cp -r "gnaf-${applet}" "${gnaf_dir}/applets/${applet}"
-        echo '' >> "${settings_dir}"
-        echo "${applet} = {'applet':'${applet}'}" >> "${settings_dir}"
-        echo "Applet ${applet} has been succesfully installed."
-        echo "  Configure the applet in ~/.gnaf/settings.py."
+    Applet="${1}"
+    Official=false
+    for OffApp in "${OfficialApplets[@]}"; do
+        if [ "${Applet}" == "${OffApp}" ]; then
+            Official=true
+            break
+        fi
+    done
+    if ! $Official; then
+        echo -e "\nApplet \e[1;35m${Applet}\e[m isn't available in official repositories."
+        echo -e "To install a custom applet simply move the applet to ${HOME}/.gnaf.\n"
+        exit 1
     fi
 fi
+
+PyPathCmd="from distutils.sysconfig import get_python_lib;print get_python_lib()"
+PyPath=$(python2 -c "${PyPathCmd}")
+
+if [ ! -d "${PyPath}/gnaf"]; then
+    echo -e "\nGNAF isn't installed. To install GNAF run:"
+    echo -e "\e[1;34m./gnaf-install\e[m\n"
+fi
+
+GitRepo="git@github.com:Kantist/gnaf-${Applet}.git"
+
+if [ -d "${Applet}" ]; then
+    rm -vrf "${Applet}"
+fi
+
+git clone "${GitRepo}"
+
+sudo cp -vr "gnaf-${Applet}" "${PyPath}/gnaf/applets/${Applet}"
+
 exit 0

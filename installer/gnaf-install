@@ -1,10 +1,27 @@
 #!/bin/bash
-gnaf_repo="git://github.com/Kantist/gnaf.git"
-py2_site_packages="/usr/lib/python2.7/site-packages"
-git clone "${git_repo}"
-cp -r gnaf "${py2_site_packages}/gnaf"
-cp bin/gnaf /usr/bin/gnaf
-./gnaf-test
-mkdir "${HOME}/.gnaf"
-touch "${HOME}/.gnaf/settings.py"
+GitRepo="git://github.com/Kantist/gnaf.git"
+PyPathCmd="from distutils.sysconfig import get_python_lib;print get_python_lib()"
+
+if [ -d "gnaf" ]; then
+    rm -vrf "gnaf"
+fi
+
+git clone "${GitRepo}"
+
+PyPath=$(python2 -c "${PyPathCmd}")
+
+sudo cp -vr "gnaf" "${PyPath}/gnaf"
+
+chmod -v +x "gnaf-run"
+sudo cp "gnaf-run" "/usr/bin/gnaf"
+
+if [ ! -d "${HOME}/.gnaf" ]; then
+    mkdir -v "${HOME}/.gnaf"
+fi
+
+if [ ! -f "${HOME}/.gnaf/settings.py" ]; then
+    touch "${HOME}/.gnaf/settings.py"
+fi
+
+echo "GNAF installed."
 exit 0

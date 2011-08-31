@@ -1,6 +1,0 @@
-To install gnaf:
-    run ./gnaf-install
-
-To install a gnaf-applet:
-    run ./gnaf-applet-install APPLET_NAME
-    (see list of applets on https://github.com/Kantist)
