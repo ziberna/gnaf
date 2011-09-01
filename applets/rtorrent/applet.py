@@ -23,10 +23,12 @@ from gnaf.lib.write import debug
 class RTorrentApplet(gnaf.Gnaf):
     settings = {
         'icon':{
-            'new':None,
-            'idle':None,
-            'updating':None,
-            'error':None
+            'idle':'idle.png',
+            'new':'new.png',
+            'downloading':'downloading.png',
+            'seeding':'seeding.png',
+            'both':'both.png',
+            'stopped':'stopped.png'
         },
         'interval':5,
         'server':'http://localhost'
@@ -47,11 +49,13 @@ class RTorrentApplet(gnaf.Gnaf):
             self.data = self.tooltip
             return False
         self.filter_new()
+        
         data = []
         downloading_count = 0
-        uploading_count = 0
+        seeding_count = 0
         completed_count = 0
         stopped_count = 0
+        
         for t in self.torrents:
             if len(t['name']) > 30:
                 t['name'] = t['name'][:27] + '...'
@@ -68,7 +72,7 @@ class RTorrentApplet(gnaf.Gnaf):
                 if t['percentage'] == 100.0:
                     state = 'seeding'
                     state_symbol = '\xe2\x86\x91'
-                    uploading_count += 1
+                    seeding_count += 1
                 else:
                     state = 'downloading'
                     state_symbol = '\xe2\x86\x93'
@@ -89,13 +93,27 @@ class RTorrentApplet(gnaf.Gnaf):
                 formatTooltip(info)
             ))
         self.data = data
+        
         self.tooltip = formatTooltip([
-            '%i\xe2\x86\x93 / %i\xe2\x86\x91 / %i\xe2\x9c\x93 / %i\xc3\x97' % (downloading_count, uploading_count, completed_count, stopped_count),
+            '%i\xe2\x86\x93 / %i\xe2\x86\x91 / %i\xe2\x9c\x93 / %i\xc3\x97' % (downloading_count, seeding_count, completed_count, stopped_count),
             ('Downloaded', bytes_to_str(downloaded)),
             ('Uploaded', bytes_to_str(uploaded)),
             ('Down', bytes_to_str(downspeed, True) + '/s'),
             ('Up', bytes_to_str(upspeed, True) + '/s')
         ])
+        
+        if len(self.new) > 0:
+            self.icon = 'new'
+        elif downloading_count > 0:
+            if seeding_count > 0:
+                self.icon = 'both'
+            else:
+                self.icon = 'downloading'
+        elif seeding_count > 0:
+            self.icon = 'seeding'
+        else:
+            self.icon = 'stopped'
+        
         return (len(self.new) > 0)
     
     def notify(self):
