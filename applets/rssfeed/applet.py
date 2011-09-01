@@ -18,7 +18,8 @@
 from feedparser import FeedParser
 import random
 import gnaf
-from gnaf.lib.format import formatTooltip
+from gnaf.lib.format import formatTooltip, bashQuotes
+from gnaf.lib.tools import Shell
 
 class RssFeed(gnaf.Gnaf):
     settings = {
@@ -65,6 +66,8 @@ class RssFeed(gnaf.Gnaf):
                         entry.title = '%s...' % entry.title[:length-3]
                     data.append((
                         entry.title,
+                        self.open_entry,
+                        (entry.link,),
                         formatTooltip([
                             ('Author', entry.author),
                             ('Published', entry.published)
@@ -93,3 +96,8 @@ class RssFeed(gnaf.Gnaf):
         for e_old in self.entries_old:
             self.entries_new = [e for e in self.entries_new if e.published_str != e_old.published_str]
         self.entries_old = list(self.entries)
+    
+    def open_entry(self, url=None):
+        if url != None:
+            xdg_open = "xdg-open '%s'" % bashQuotes(url)
+            Shell(xdg_open)

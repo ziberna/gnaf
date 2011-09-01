@@ -27,6 +27,7 @@ class Entry:
         self.author = entry.find('{%s}author' % NAMESPACE).find('{%s}name' % NAMESPACE).text
         self.published_str = entry.find('{%s}published' % NAMESPACE).text
         self.published = datetime.strptime(self.published_str, '%Y-%m-%dT%H:%M:%SZ')
+        self.link = entry.find('{%s}link' % NAMESPACE).attrib['href']
         self.__repr__ = self.__unicode__ = self.__str__
     
     def __str__(self):
