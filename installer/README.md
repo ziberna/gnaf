@@ -18,7 +18,7 @@ To install an official GNAF applet:
 
     $ ./gnaf-applet-install [APPLET-NAME]
 
-To see list of the official applets:
+To see a list of the official applets:
 
     $ ./gnaf-applet-install
 
@@ -40,3 +40,11 @@ To start GNAF run:
 
     $ gnaf
 
+The following stuff can be set/done from an icon's right click menu while an applet instance is running:
+
+ - notifications (on/off)
+ - enabled (on/off)
+ - visibility (off)
+ - set icon to idle (this option appears only when icon is not already set to idle)
+ - clear data (resets GUI elements and re-initializes on the next update)
+ - update now (manual update, the update interval will shift accordingly)

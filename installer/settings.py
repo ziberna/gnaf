@@ -5,6 +5,7 @@ WhateverYouLike = { # you can select your own custom name for an applet instance
     'debug':True, # traceback output (default: True)
     'notify':True, # desktop notifications (default: True)
     'enabled':False, # (default: True)
+    'visible':True, # visibility of the icon (default: True)
     'icon':{'new':'myicon.png'} # dictionary of your custom icons (default: set by applet)
 }
 
@@ -16,7 +17,6 @@ WhateverYouLike = { # you can select your own custom name for an applet instance
 #  - /gnaf-path/applets/applet-name/icons
 #  - /gnaf-path/applets/applet-name
 #  - /gnaf-path/applets
-
 
 
 # Example of instance using rssfeed applet:
@@ -54,4 +54,3 @@ Gmail = {
     ],
     'url':'http://mail.google.com/'
 }
-
