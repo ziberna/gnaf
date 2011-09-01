@@ -86,12 +86,10 @@ class RssFeed(gnaf.Gnaf):
     def filter_new(self):
         # return empty list on first run
         if self.entries_old == None:
-            self.entries_old = list(self.entries)
             self.entries_new = []
+            self.entries_old = list(self.entries)
+            return
         self.entries_new = list(self.entries)
         for e_old in self.entries_old:
-            for e_new in self.entries_new:
-                if e_new.title == e_old.title and e_new.published_str == e_old.published_str:
-                    self.entries_new.remove(e_new)
-                    break
+            self.entries_new = [e for e in self.entries_new if e.published_str != e_old.published_str]
         self.entries_old = list(self.entries)
