@@ -24,10 +24,10 @@ class MailApplet(gnaf.Gnaf):
     settings = {
         'interval':15,
         'icon':{
-            'idle':None,
-            'updating':None,
-            'new':None,
-            'error':None
+            'idle':'idle.png',
+            'updating':'updating.png',
+            'new':'new.png',
+            'error':'error.png'
         },
         'username':'',
         'password':'',
