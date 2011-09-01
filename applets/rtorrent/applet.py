@@ -18,6 +18,7 @@
 from rtorrent import RTorrent
 import gnaf
 from gnaf.lib.format import formatTooltip
+from gnaf.lib.write import debug
 
 class RTorrentApplet(gnaf.Gnaf):
     settings = {
@@ -39,34 +40,77 @@ class RTorrentApplet(gnaf.Gnaf):
     
     def update(self):
         try:
-            self.torrents = self.rtorrent.update()
+            self.torrents = self.rtorrent.get_torrents()
+            downloaded, uploaded, downspeed, upspeed = self.rtorrent.get_global_vars()
         except:
-            return None
+            self.tooltip = 'RTorrent or RPC server isn\'t running.'
+            self.data = self.tooltip
+            return False
         self.filter_new()
         data = []
+        downloading_count = 0
+        uploading_count = 0
+        completed_count = 0
+        stopped_count = 0
         for t in self.torrents:
-            tooltip = [
-                ('ETA', seconds_to_str(t['ETA'])),
-                ('Size', bytes_to_str(t['size'])),
-                ('Ratio', '%.2f' % t['ratio'])
+            if len(t['name']) > 30:
+                t['name'] = t['name'][:27] + '...'
+            if t['state'] == 0:
+                if t['percentage'] == 100.0:
+                    state = 'completed'
+                    state_symbol = '\xe2\x9c\x93'
+                    completed_count += 1
+                else:
+                    state = 'stopped'
+                    state_symbol = '\xc3\x97'
+                    stopped_count += 1
+            else:
+                if t['percentage'] == 100.0:
+                    state = 'seeding'
+                    state_symbol = '\xe2\x86\x91'
+                    uploading_count += 1
+                else:
+                    state = 'downloading'
+                    state_symbol = '\xe2\x86\x93'
+                    downloading_count += 1
+            info = [
+                ('ETA', seconds_to_str(t['ETA'])) if t['ETA'] > 0 else None,
+                ('Downloaded', bytes_to_str(t['downloaded']) + ((' / ' + bytes_to_str(t['size'])) if t['percentage'] != 100.0 else '')),
+                ('Uploaded', bytes_to_str(t['uploaded'])),
+                ('Ratio', '%.2f' % t['ratio']),
+                ('Down', bytes_to_str(t['downspeed'], True) + '/s') if t['percentage'] != 100.0 or t['state'] != 0 else None,
+                ('Up', bytes_to_str(t['upspeed'], True) + '/s') if t['state'] != 0 else None,
+                ('Files', str(t['files']) + ' / ' + str(t['total-files'])),
+                ('Total size', bytes_to_str(t['total-size'])) if t['total-size'] != t['downloaded'] else None
             ]
-            if t['ETA'] == 0:
-                del tooltip[0]
+            info = [i for i in info if i != None]
             data.append((
-                '%s (%.0f%%)' % (t['name'], t['percentage']),
-                formatTooltip(tooltip)
+                '[%s] %s (%s%%)' % (state_symbol, t['name'], ('%.2f' % t['percentage']) if t['percentage'] != 100.0 else '100'),
+                formatTooltip(info)
             ))
         self.data = data
-        self.tooltip = '%i torrent(s)' % len(self.torrents)
+        self.tooltip = formatTooltip([
+            '%i\xe2\x86\x93 / %i\xe2\x86\x91 / %i\xe2\x9c\x93 / %i\xc3\x97' % (downloading_count, uploading_count, completed_count, stopped_count),
+            ('Downloaded', bytes_to_str(downloaded)),
+            ('Uploaded', bytes_to_str(uploaded)),
+            ('Down', bytes_to_str(downspeed, True) + '/s'),
+            ('Up', bytes_to_str(upspeed, True) + '/s')
+        ])
         return (len(self.new) > 0)
     
     def notify(self):
         if len(self.new) == 0:
             return False
-        title = '%i torrent(s) completed' % len(self.new)
-        body = '\n'.join(t['name'] for t in self.new)
-        self.notifications = (title, body)
-        self.uncompleted = [t for t in self.torrents if t['percentage'] < 100]
+        notifications = []
+        for u in self.uncompleted:
+            notifications.append((
+                u['name'],
+                formatTooltip([
+                    ('Uploaded', bytes_to_str(u['uploaded']))
+                    ('Ratio', '%.2f' % u['ratio'])
+                ])
+            ))
+        self.notifications = notifications
         return True
     
     def filter_new(self):
@@ -81,10 +125,12 @@ class RTorrentApplet(gnaf.Gnaf):
         self.uncompleted = [t for t in self.torrents if t['percentage'] < 100]
     
 
-def bytes_to_str(bytes):
+def bytes_to_str(bytes, kilo_preferred=False):
+    kilo_limit = 1024 if kilo_preferred else 10.24
+    
     bytes = float(bytes)
     kilo = bytes / 1024
-    if kilo <= 10.24:
+    if kilo <= kilo_limit:
         return '%.2f kB' % kilo
     mega = kilo / 1024
     if mega <= 1024:

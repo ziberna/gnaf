@@ -22,7 +22,7 @@ class RTorrent:
         self.server = ServerProxy(server)
         self.torrents = None
     
-    def update(self):
+    def get_torrents(self):
         downloads = self.server.download_list()
         torrents = []
         D = self.server.d
@@ -30,15 +30,15 @@ class RTorrent:
             t = {}
             t['id'] = d
             t['name'] = D.get_name(d)
-            t['size'] = D.get_size_bytes(d)
-            t['files'] = D.get_size_files(d)
+            t['total-files'] = D.get_size_files(d)
+            t['total-size'] = D.get_size_bytes(d)
+            t['size'], t['downloaded'], t['files'] = self.get_enabled_bytes(d, t['total-files'])
             t['state'] = D.get_state(d)
-            t['downloaded'] = D.get_bytes_done(d)
             t['uploaded'] = D.get_up_total(d)
             t['downspeed'] = D.get_down_rate(d)
             t['upspeed'] = D.get_up_rate(d)
             t['ratio'] = float(D.get_ratio(d)) / 1000
-            t['percentage'] = float(t['downloaded']) / t['size'] * 100
+            t['percentage'] = float(t['downloaded']) / float(t['size']) * 100.0
             if t['downspeed'] > 0:
                 t['ETA'] = float(t['size'] - t['downloaded']) / t['downspeed']
             else:
@@ -46,3 +46,25 @@ class RTorrent:
             torrents.append(t)
         self.torrents = torrents
         return self.torrents
+    
+    def get_enabled_bytes(self, id, file_count):
+        all = 0.0
+        completed = 0.0
+        files = 0
+        for f in range(0,file_count):
+            if self.server.f.get_priority(id, f) == 0:
+                continue
+            files += 1
+            chunks = float(self.server.f.get_size_chunks(id, f))
+            chunks_completed = float(self.server.f.get_completed_chunks(id, f))
+            bytes = float(self.server.f.get_size_bytes(id, f))
+            all += bytes
+            completed += (chunks_completed / chunks) * bytes
+        return all, completed, files
+    
+    def get_global_vars(self):
+        downloaded = self.server.get_down_total()
+        uploaded = self.server.get_up_total()
+        downspeed = self.server.get_down_rate()
+        upspeed = self.server.get_up_rate()
+        return downloaded, uploaded, downspeed, upspeed
