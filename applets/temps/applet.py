@@ -23,6 +23,7 @@ class TempsApplet(gnaf.Gnaf):
     settings = {
         'interval':3,
         'icon':{
+            'idle':'temp.png',
             'error':'temp.png',
             'temp1':'temp1.png',
             'temp2':'temp2.png',
@@ -43,10 +44,10 @@ class TempsApplet(gnaf.Gnaf):
         low = self.settings['low']
         step = float(self.critical_limit - low) / 4
         self.steps = {
-            '1':low + step * 0.5,
-            '2':low + step * 1.5,
-            '3':low + step * 2.5,
-            '4':low + step * 3.5
+            '1':low + step,
+            '2':low + step * 2,
+            '3':low + step * 3,
+            '4':self.critical_limit
         }
         self.critical = False
         self.ignore = self.settings['ignore']
