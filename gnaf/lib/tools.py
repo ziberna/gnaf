@@ -19,6 +19,7 @@ import time
 import thread as threading
 import subprocess as sp
 from gnaf.lib.istype import isdict, islist
+from gnaf.lib.write import debug
 
 def id(object=None):
     t = time.time()
@@ -35,6 +36,14 @@ def timeout(seconds, function, *params):
 
 def threadTimeout(seconds, function, *params):
     thread(lambda s=seconds, f=function, p=params: timeout(s,f,*p))
+
+def tryExcept(function, *params):
+    try:
+        value = function(*params)
+    except:
+        debug()
+        value = None
+    return value
 
 def tolist(value):
     if not islist(value):

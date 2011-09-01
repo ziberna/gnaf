@@ -20,7 +20,7 @@ import os; exists = os.path.exists
 
 from gnaf.lib.istype import *
 from gnaf.lib.format import bashQuotes
-from gnaf.lib.tools import id, Shell
+from gnaf.lib.tools import id, Shell, tryExcept
 from gnaf.lib.write import writeLR
 
 ################################################################################
@@ -314,9 +314,9 @@ class MenuItem(object):
             if self._signal_id != None:
                 self.item.disconnect(self._signal_id)
             if self.args != None:
-                signal = self.item.connect('activate', lambda g, f=value, a=self.args: f(*a))
+                signal = self.item.connect('activate', lambda g, f=value, a=self.args: tryExcept(f,*a))
             else:
-                signal = self.item.connect('activate', lambda g, f=value: f())
+                signal = self.item.connect('activate', lambda g, f=value: tryExcept(f))
             self._signal_id = signal
     
     @property
