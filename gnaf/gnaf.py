@@ -164,9 +164,11 @@ class Gnaf(object):
         if success == True:
             self.log('Update', 'TRUE')
             self.icon = 'new'
+            self.tooltip = None
         elif success == False:
             self.log('Update', 'FALSE')
             self.icon = 'idle'
+            self.tooltip = None
         else:
             self.log('Update', 'ERROR')
             self.icon = 'error'
@@ -213,6 +215,7 @@ class Gnaf(object):
             '%s' % (Gnaf.applet_dir)
         ]
         self._icon = gui.Icon(paths=self.paths, types=self.settings['icon'])
+        self.visible = (not 'visible' in self.settings or self.settings['visible'])
         self._icon.type = 'idle'
     
     @property
@@ -228,11 +231,16 @@ class Gnaf(object):
     
     @tooltip.setter
     def tooltip(self, value):
+        if self.appletting:
+            self._tooltip_applet = value
+        elif value == None:
+            value = self._tooltip_applet
         if not self.was_set(self._tooltip):
             self._tooltip.text = value
     
     def tooltip_init(self):
         self._tooltip = self._icon._tooltip
+        self._tooltip_applet = None
     
     @property
     def data(self): return self._data.items
@@ -263,6 +271,7 @@ class Gnaf(object):
             ('Mark as idle', self.mark_as_idle) if self.icon != 'idle' else None,
             ('%s notifications' % ('Disable' if self.notify_enabled else 'Enable'), self.notiy_enable_disable),
             '-',
+            ('Hide', self.hide),
             ('Disable' if self.enabled else 'Enable', self.enable_disable),
             ('Quit', self.quit),
             ('Quit all', Gnaf.main_quit)
@@ -331,4 +340,6 @@ class Gnaf(object):
         self.notify_enabled = not self.notify_enabled
         self.log('Notifications enabled', 'TRUE' if self.notify_enabled else 'FALSE')
         self.context = []
-
+    
+    def hide(self):
+        self.visible = False

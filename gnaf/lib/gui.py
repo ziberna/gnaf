@@ -50,24 +50,45 @@ GobjectTimeoutAdd = gobject.timeout_add
 ################################################################################
 gui_count = 0
 update_count = 0
+gui_change_id = 0
+gui_interval = 0.25
 
 def GuiCount():
     global gui_count
     gui_count += 1
     if gui_count % 10 == 0:
-        writeLR(' - statistics', '%i GUI changes/%i applet updates - ' % (gui_count, update_count))
+        Statistics()
 
 def UpdateCount():
     global update_count
     update_count += 1
 
+def Statistics():
+    writeLR(' - statistics', '%i GUI changes/%i applet updates - ' % (gui_count, update_count))
+
 def IdleAdd(function, *params):
-    GuiCount()
-    GobjectIdleAdd(function, *params)
+    global gui_change_id; global gui_interval
+    gui_id = id()
+    diff = gui_id - gui_change_id
+    if diff < gui_interval and diff > 0:
+        time.sleep(diff)
+        IdleAdd(function, *params)
+    else:
+        gui_change_id = gui_id
+        GobjectIdleAdd(function, *params)
+        GuiCount()
 
 def TimeoutAdd(seconds, function, *params):
-    GuiCount()
-    GobjectTimeoutAdd(seconds * 1000, function, *params)
+    global gui_change_id; global gui_interval
+    gui_id = id()
+    diff = gui_id - gui_change_id
+    if diff < gui_interval and diff > 0:
+        time.sleep(diff)
+        IdleAdd(function, *params)
+    else:
+        gui_change_id = gui_id
+        GobjectTimeoutAdd(seconds * 1000, function, *params)
+        GuiCount()
 
 class Icon(object):
     _type = None
@@ -379,4 +400,3 @@ class Notifier(object):
         icon = ("-i '%s'" % bashQuotes(icon)) if icon != None else ''
         
         Shell("notify-send %s %s %s" % (icon, title, body))
-

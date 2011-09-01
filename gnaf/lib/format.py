@@ -16,6 +16,7 @@
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
 import time
+from gnaf.lib.istype import isstr
 
 def chop(seq, length, start=0):
     l = [seq[:start]] if start > 0 else []
@@ -52,7 +53,7 @@ def formatC(text, fill='', space=0, margin=80):
         return '\n'.join(chp)
 
 def formatTooltip(tooltip):
-    return '\n'.join(['<b>%s</b>: %s' % (t[0], t[1]) for t in tooltip])
+    return '\n'.join([t if isstr(t) else '<b>%s</b>: %s' % (t[0], t[1]) for t in tooltip])
 
 def bashQuotes(str):
     return str.replace("'", "'\\''")
