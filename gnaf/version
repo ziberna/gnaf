@@ -1,3 +1,4 @@
+[2011-09-01] 3.0.3 Notify-send replaced w/ pynotify (msgs don't appear in stack by default anymore)
 [2011-09-01] 3.0.2 Error handling for menu-item-click functions
 [2011-09-01] 3.0.1 GUI throttling & hide option via menu
 [2011-08-30] 3.0.0 MAJOR rewrite

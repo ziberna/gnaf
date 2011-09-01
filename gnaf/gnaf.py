@@ -219,12 +219,10 @@ class Gnaf(object):
         self._icon.type = 'idle'
     
     @property
-    def visible(self): return self._visible
+    def visible(self): return self._icon.visible
     
     @visible.setter
-    def visible(self, value):
-        self._visible = value
-        self._icon.visible = value
+    def visible(self, value): self._icon.visible = value
     
     @property
     def tooltip(self): return self._tooltip.text
@@ -269,7 +267,7 @@ class Gnaf(object):
             ('Update now', self.run_manual),
             ('Clear data', self.clear),
             ('Mark as idle', self.mark_as_idle) if self.icon != 'idle' else None,
-            ('%s notifications' % ('Disable' if self.notify_enabled else 'Enable'), self.notiy_enable_disable),
+            ('%s notifications' % ('Disable' if self.notify_enabled else 'Enable'), self.notify_enable_disable),
             '-',
             ('Hide', self.hide),
             ('Disable' if self.enabled else 'Enable', self.enable_disable),
@@ -336,7 +334,7 @@ class Gnaf(object):
         self.icon = 'idle'
         self.context = []
     
-    def notiy_enable_disable(self):
+    def notify_enable_disable(self):
         self.notify_enabled = not self.notify_enabled
         self.log('Notifications enabled', 'TRUE' if self.notify_enabled else 'FALSE')
         self.context = []

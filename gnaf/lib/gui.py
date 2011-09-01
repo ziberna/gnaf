@@ -47,6 +47,8 @@ import gobject
 ThreadsInit = gobject.threads_init
 GobjectIdleAdd = gobject.idle_add
 GobjectTimeoutAdd = gobject.timeout_add
+
+import pynotify; pynotify.init('GNAF')
 ################################################################################
 gui_count = 0
 update_count = 0
@@ -386,17 +388,25 @@ class Notifier(object):
                 if len(item) == 1:
                     Notifier.execute(item[0], icon=icon)
                 elif len(item) == 2:
-                    if exists(item[1]):
+                    if isbool(item[1]):
+                        Notifier.execute(item[0], icon=icon, stack=item[1])
+                    elif exists(item[1]):
                         Notifier.execute(item[0], icon=item[1])
                     else:
                         Notifier.execute(item[0], item[1], icon)
-                elif len(item) >= 3:
-                    Notifier.execute(item[0], item[1], item[2])
+                elif len(item) == 3:
+                    if exists(item[1]):
+                        Notifier.execute(item[0], icon=item[1], stack=item[2])
+                    elif exists(item[2]):
+                        Notifier.execute(*item)
+                    else:
+                        Notifier.execute(item[0], item[1], icon=icon, stack=item[2])
+                elif len(item) >= 4:
+                    Notifier.execute(item[0], item[1], item[2], item[3])
     
     @staticmethod
-    def execute(title, body=None, icon=None):
-        title = "'%s'" % bashQuotes(title)
-        body = ("'%s'" % bashQuotes(body)) if body != None else ''
-        icon = ("-i '%s'" % bashQuotes(icon)) if icon != None else ''
-        
-        Shell("notify-send %s %s %s" % (icon, title, body))
+    def execute(title, body=None, icon=None, stack=False):
+        n = pynotify.Notification(title, body, icon)
+        n.show()
+        if not stack:
+            n.close()
