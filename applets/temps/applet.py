@@ -32,26 +32,22 @@ class TempsApplet(gnaf.Gnaf):
             'temp5':'temp5.png'
         },
         'method':'sensors',
-        'critical':75,
-        'low':20,
-        'ignore':[],
-        'alias':{}
+        'max':75,
+        'min':20
     }
     
     def initialize(self):
         self.method = self.settings['method']
-        self.critical_limit = self.settings['critical']
-        low = self.settings['low']
-        step = float(self.critical_limit - low) / 4
+        self.max = self.settings['max']
+        self.min = self.settings['min']
+        step = float(self.max - self.min) / 4
         self.steps = {
-            '1':low + step,
-            '2':low + step * 2,
-            '3':low + step * 3,
-            '4':self.critical_limit
+            '1':self.min + step,
+            '2':self.min + step * 2,
+            '3':self.min + step * 3,
+            '4':self.max
         }
         self.critical = False
-        self.ignore = self.settings['ignore']
-        self.alias = self.settings['alias']
         return True
     
     def update(self):
@@ -61,19 +57,14 @@ class TempsApplet(gnaf.Gnaf):
         templist = []
         fanlist = []
         for temp in temps:
-            if temp['id'] in self.ignore:
-                continue
-            id = temp['id'] if not temp['id'] in self.alias else self.alias[temp['id']]
             values = []
             tlist = []
             flist = []
             for t in temp['values']:
-                if t['id'] in self.alias:
-                    t['id'] = self.alias[t['id']]
                 if t['value'][-1] == 'C':
                     val = float(t['value'].replace('\xc2\xb0C', ''))
                     tlist.append(val)
-                    if val >= self.critical_limit:
+                    if val >= self.max:
                         self.critical = True
                         self.critical_value = val
                         self.critical_id = t['id']
@@ -85,7 +76,7 @@ class TempsApplet(gnaf.Gnaf):
             templist.extend(tlist)
             fanlist.extend(flist)
             data.append((
-                id,
+                temp['id'],
                 values
             ))
         temp_avg = sum(templist) / len(templist)
