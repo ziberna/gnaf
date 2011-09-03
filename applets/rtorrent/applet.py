@@ -47,7 +47,15 @@ class RTorrentApplet(gnaf.Gnaf):
         except:
             self.tooltip = 'RTorrent or RPC server isn\'t running.'
             self.data = self.tooltip
+            self.icon = 'idle'
             return False
+        if len(self.torrents) == 0:
+            self.uncompleted = []
+            self.tooltip = 'No torrents opened.'
+            self.data = self.tooltip
+            self.icon = 'idle'
+            return False
+        
         self.filter_new()
         
         data = []
@@ -55,6 +63,7 @@ class RTorrentApplet(gnaf.Gnaf):
         seeding_count = 0
         completed_count = 0
         stopped_count = 0
+        ETA = 0
         
         for t in self.torrents:
             if len(t['name']) > 30:
@@ -77,6 +86,7 @@ class RTorrentApplet(gnaf.Gnaf):
                     state = 'downloading'
                     state_symbol = '\xe2\x86\x93'
                     downloading_count += 1
+            if t['ETA'] > ETA: ETA = t['ETA']
             info = [
                 ('ETA', seconds_to_str(t['ETA'])) if t['ETA'] > 0 else None,
                 ('Downloaded', bytes_to_str(t['downloaded']) + ((' / ' + bytes_to_str(t['size'])) if t['percentage'] != 100.0 else '')),
@@ -99,7 +109,8 @@ class RTorrentApplet(gnaf.Gnaf):
             ('Downloaded', bytes_to_str(downloaded)),
             ('Uploaded', bytes_to_str(uploaded)),
             ('Down', bytes_to_str(downspeed, True) + '/s'),
-            ('Up', bytes_to_str(upspeed, True) + '/s')
+            ('Up', bytes_to_str(upspeed, True) + '/s'),
+            ('ETA', seconds_to_str(ETA))
         ])
         
         if len(self.new) > 0:
@@ -120,12 +131,12 @@ class RTorrentApplet(gnaf.Gnaf):
         if len(self.new) == 0:
             return False
         notifications = []
-        for u in self.uncompleted:
+        for n in self.new:
             notifications.append((
-                u['name'],
+                n['name'],
                 formatTooltip([
-                    ('Uploaded', bytes_to_str(u['uploaded']))
-                    ('Ratio', '%.2f' % u['ratio'])
+                    ('Uploaded', bytes_to_str(n['uploaded'])),
+                    ('Ratio', '%.2f' % n['ratio'])
                 ])
             ))
         self.notifications = notifications
