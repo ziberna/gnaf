@@ -94,6 +94,7 @@ class RTorrentApplet(gnaf.Gnaf):
                 ('Ratio', '%.2f' % t['ratio']),
                 ('Down', bytes_to_str(t['downspeed'], True) + '/s') if t['percentage'] != 100.0 or t['state'] != 0 else None,
                 ('Up', bytes_to_str(t['upspeed'], True) + '/s') if t['state'] != 0 else None,
+                ('Peers', '%i peers / %i seeds (%i)' % (t['peers'], t['seeds'], t['total-peers'])),
                 ('Files', str(t['files']) + ' / ' + str(t['total-files'])),
                 ('Total size', bytes_to_str(t['total-size'])) if t['total-size'] != t['downloaded'] else None
             ]
@@ -104,14 +105,16 @@ class RTorrentApplet(gnaf.Gnaf):
             ))
         self.data = data
         
-        self.tooltip = formatTooltip([
+        tooltip = [
             '%i\xe2\x86\x93 / %i\xe2\x86\x91 / %i\xe2\x9c\x93 / %i\xc3\x97' % (downloading_count, seeding_count, completed_count, stopped_count),
             ('Downloaded', bytes_to_str(downloaded)),
             ('Uploaded', bytes_to_str(uploaded)),
             ('Down', bytes_to_str(downspeed, True) + '/s'),
             ('Up', bytes_to_str(upspeed, True) + '/s'),
-            ('ETA', seconds_to_str(ETA))
-        ])
+            ('ETA', seconds_to_str(ETA)) if ETA > 0 else None
+        ]
+        tooltip = [t for t in tooltip if t != None]
+        self.tooltip = formatTooltip(tooltip)
         
         if len(self.new) > 0:
             self.icon = 'new'

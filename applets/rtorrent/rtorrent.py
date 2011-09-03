@@ -43,6 +43,10 @@ class RTorrent:
                 t['ETA'] = float(t['size'] - t['downloaded']) / t['downspeed']
             else:
                 t['ETA'] = 0
+            peers_connected = D.peers_connected(d)
+            t['seeds'] = D.peers_complete(d)
+            t['peers'] = peers_connected - t['seeds']
+            t['total-peers'] = peers_connected + D.peers_not_connected(d)
             torrents.append(t)
         self.torrents = torrents
         return self.torrents
