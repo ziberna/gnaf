@@ -51,7 +51,7 @@ def tolist(value):
     return value
 
 def dictmerge(*dicts):
-    merge = {}
+    merge = Dict()
     for dict in dicts:
         for key in dict:
             if isdict(dict[key]) and key in merge and isdict(merge[key]):
@@ -59,6 +59,16 @@ def dictmerge(*dicts):
             else:
                 merge[key] = dict[key]
     return merge
+
+class Dict(dict):
+    def __init__(self, default=None):
+        self.default = default
+    
+    def __getitem__(self, key):
+        if key not in self:
+            return self.default
+        else:
+            return dict.__getitem__(self, key)
 
 class Shell:
     def __init__(self, command):

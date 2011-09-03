@@ -20,8 +20,8 @@ import sys
 import os
 
 import lib.gui as gui
-from lib.tools import id, tolist, dictmerge, thread, timeout, threadTimeout
-from lib.write import logC, logTime, debug, writeln
+from lib.tools import id, tolist, dictmerge, Dict, thread, threadTimeout
+from lib.write import logC, logTime, debug
 from lib.format import timestamp
 
 GnafApplets = []
@@ -33,11 +33,12 @@ class Gnaf(object):
         # Flags and IDs initialization
         self.flag_init()
         # GUI initialization
-        self.icon_init()
-        self.tooltip_init()
-        self.data_init()
-        self.context_init()
-        self.notifications_init()
+        gui.IdleAdd(self.gui_init)
+        gui.IdleAdd(self.icon_init)
+        gui.IdleAdd(self.tooltip_init)
+        gui.IdleAdd(self.data_init)
+        gui.IdleAdd(self.context_init)
+        gui.IdleAdd(self.notifications_init)
         # Final
         global GnafApplets
         GnafApplets.append(self)
@@ -50,8 +51,10 @@ class Gnaf(object):
         self.initialize_id = 0
         self.updating = False
         self.update_id = 0
-        self.notify_enabled = (not 'notify' in self.settings or self.settings['notify'])
+        self.notify_enabled = ('notify' not in self.settings or self.settings['notify'])
         self.appletting = False
+        self.value = Dict()
+        self.id = Dict(1)
     
     # Main methods #
     @staticmethod
@@ -98,12 +101,10 @@ class Gnaf(object):
         self.log('Clearing data', '...')
         # Flags and IDs initialization
         self.flag_init()
-        # GUI initialization
+        # GUI resets
         self.icon = 'idle'
         self.tooltip = None
         self.data = 'Not updated yet.'
-        self._context_time = []
-        self._context_applet = []
         self.context = []
         self.log('Data clearance', 'DONE')
     
@@ -181,7 +182,6 @@ class Gnaf(object):
         self.updating = False
         if self.notify_enabled:
             self.notify_applet()
-        gui.UpdateCount()
     
     def notify_applet(self):
         try:
@@ -197,73 +197,106 @@ class Gnaf(object):
         else:
             self.log('Notify', 'ERROR')
     
-    # GUI elements #
+    # GUI methods #
+    def gui_init(self):
+        self.gui = gui.Gui()
+    
     @property
-    def icon(self): return self._icon.type
+    def icon(self): return self.value['icon']
     
     @icon.setter
     def icon(self, value):
-        if not self.was_set(self._icon):
-            self._icon.type = value
+        if not self.was_set(self.id['icon']):
+            self.id['icon'] = id()
+            self.value['icon'] = value
+            gui.IdleAdd(self.icon_setter, value)
+    
+    def icon_setter(self, value): self.gui.icon(value)
     
     def icon_init(self):
-        self.paths = [
+        self.value['icon'] = 'idle'
+        self.value['visible'] = (not 'visible' in self.settings or self.settings['visible'])
+        self.gui.icon_types = self.settings['icon']
+        self.gui.icon_paths = [
             '%s/%s' % (Gnaf.user_dir, self.name),
             '%s' % (Gnaf.user_dir),
             '%s/%s/icons' % (Gnaf.applet_dir, self.name),
             '%s/%s' % (Gnaf.applet_dir, self.name),
             '%s' % (Gnaf.applet_dir)
         ]
-        self._icon = gui.Icon(paths=self.paths, types=self.settings['icon'])
-        self.visible = (not 'visible' in self.settings or self.settings['visible'])
-        self._icon.type = 'idle'
+        self.gui.icon(self.value['icon'])
+        self.gui.visible(self.value['visible'])
     
     @property
-    def visible(self): return self._icon.visible
+    def visible(self): return self.value['visible']
     
     @visible.setter
-    def visible(self, value): self._icon.visible = value
+    def visible(self, value):
+        self.id['visible'] = id()
+        self.value['visible'] = value
+        gui.IdleAdd(self.visible_setter, value)
+        
+    def visible_setter(self, value): self.gui.visible(value)
     
     @property
-    def tooltip(self): return self._tooltip.text
+    def tooltip(self): return self.value['tooltip']
     
     @tooltip.setter
     def tooltip(self, value):
         if self.appletting:
-            self._tooltip_applet = value
+            self.value['tooltip-applet'] = value
         elif value == None:
-            value = self._tooltip_applet
-        if not self.was_set(self._tooltip):
-            self._tooltip.text = value
+            value = self.value['tooltip-applet']
+        if not self.was_set(self.id['tooltip']):
+            self.id['tooltip'] = id()
+            self.value['tooltip'] = value
+        gui.IdleAdd(self.tooltip_setter, value)
+    
+    def tooltip_setter(self, value): self.gui.tooltip(value)
     
     def tooltip_init(self):
-        self._tooltip = self._icon._tooltip
-        self._tooltip_applet = None
+        self.value['tooltip-applet'] = None
+        self.value['tooltip'] = None
     
     @property
-    def data(self): return self._data.items
+    def data(self): return self.value['data']
     
     @data.setter
     def data(self, value):
-        value = tolist(value)
-        if not self.was_set(self._data):
-            self._data.items = value
+        if not self.was_set(self.id['data']):
+            value = tolist(value)
+            self.id['data'] = id()
+            self.value['data'] = value
+            gui.IdleAdd(self.data_setter, value)
+    
+    def data_setter(self, value): self.gui.leftmenu(value)
     
     def data_init(self):
-        self._data = self._icon._leftmenu
-        self.data = 'Not updated yet.'
+        self.value['data'] = ['Not updated yet.']
+        self.gui.leftmenu(self.value['data'])
     
     @property
-    def context(self): return self._context_applet
+    def context(self): return self.value['context-applet']
     
     @context.setter
     def context(self, value):
         value = tolist(value)
         if self.appletting:
-            self._context_applet = value + ['-']
+            self.value['context-applet'] = value
+            value += ['-']
         elif self.updating:
-            self._context_time = ['Next update at %s' % timestamp(id() + self.interval), '-']
-        self._context_default = [
+            self.value['context-time'] = ['Next update at %s' % timestamp(id() + self.interval), '-']
+        self.value['context-default'] = self.context_default()
+        value += self.value['context-time'] + self.value['context-default']
+        gui.IdleAdd(self.context_setter, value)
+    
+    def context_setter(self, value): self.gui.rightmenu(value)
+    
+    def context_init(self):
+        self.gui.rightmenu(self.context_default())
+    
+    def context_default(self):
+        return [
             ('Update now', self.run_manual),
             ('Clear data', self.clear),
             ('Mark as idle', self.mark_as_idle) if self.icon != 'idle' else None,
@@ -274,37 +307,33 @@ class Gnaf(object):
             ('Quit', self.quit),
             ('Quit all', Gnaf.main_quit)
         ]
-        self._context.items = self._context_applet + self._context_time + self._context_default
-    
-    def context_init(self):
-        self._context = self._icon._rightmenu
-        self._context_applet = []
-        self._context_time = []
-        self.context = []
     
     @property
-    def notifications(self): return self._notifications.items
+    def notifications(self): return self.value['notifications']
     
     @notifications.setter
     def notifications(self, value):
         if not self.notify_enabled:
             return
-        value = tolist(value)
-        if not self.was_set(self._notifications):
-            self._notifications.items = value
+        if not self.was_set(self.id['notifications']):
+            self.id['notifications'] = id()
+            self.value['notifications'] = value
+            for notification in tolist(value):
+                self.gui.notify(notification)
     
     def notifications_init(self):
-        iconpath = self._icon.path_from_type('new')
-        self._notifications = gui.Notifier(auto=True,icon=iconpath)
+        self.gui.icon_path_notification = self.gui.icon_path_from_type('new')
     
     # Helper methods #
-    def was_set(self, target):
+    def was_set(self, id):
+        if not id:
+            return False
         if self.appletting:
             return False
         if self.updating:
-            return self.update_id > 0 and self.update_id < target.id
+            return self.update_id > 0 and self.update_id < id
         if self.initializing:
-            return self.initialize_id > 0 and self.initialize_id < target.id
+            return self.initialize_id > 0 and self.initialize_id < id
         return False
     
     def log(self, subject=None, status=None):
@@ -315,7 +344,7 @@ class Gnaf(object):
         logTime(subject, status)
     
     def debug(self):
-        if 'debug' not in self.settings or self.settings['debug']:
+        if self.settings['debug'] or self.settings['debug'] == None:
             debug()
     
     def error_message(self):
@@ -341,3 +370,6 @@ class Gnaf(object):
     
     def hide(self):
         self.visible = False
+    
+    def show(self):
+        self.visible = True

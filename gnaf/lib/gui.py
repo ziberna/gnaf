@@ -19,16 +19,16 @@ import time
 import os; exists = os.path.exists
 
 from gnaf.lib.istype import *
-from gnaf.lib.format import bashQuotes
-from gnaf.lib.tools import id, Shell, tryExcept
-from gnaf.lib.write import writeLR
 
 ################################################################################
 # GTK3 has issues with status icon. The following variables will allow me a    #
 # smooth migration from GTK2 to GTK3 once the icon issue in GTK3 is fixed.     #
 ################################################################################
 import gtk
+import gobject
 import pygtk; pygtk.require('2.0')
+import pynotify; pynotify.init('GNAF')
+
 GtkStatusIcon = gtk.StatusIcon
 GtkStatusIconPositionMenu = gtk.status_icon_position_menu
 GtkMenu = gtk.Menu
@@ -36,306 +36,117 @@ GtkMenuItem = gtk.MenuItem
 GtkSeparatorMenuItem = gtk.SeparatorMenuItem
 GtkCurrentEventTime = gtk.get_current_event_time
 
-Main = gtk.main
-Quit = gtk.main_quit
-
 # left unchanged:
 #  - gtk.StatusIcon.set_from_file
-#  - gtk.<any>.set_tooltip_markup
+#  - gtk.StatusIcon.set_visible
+#  - gtk.Menu.append
+#  - gtk.Menu.show_all
+#  - gtk.Menu.popup
+#  - gtk.MenuItem.set_submenu
+#  - gtk.{StatusIcon,MenuItem}.set_tooltip_markup
+#  - gtk.{StatusIcon,MenuItem}.connect
 
-import gobject
 ThreadsInit = gobject.threads_init
-GobjectIdleAdd = gobject.idle_add
-GobjectTimeoutAdd = gobject.timeout_add
-
-import pynotify; pynotify.init('GNAF')
+IdleAdd = gobject.idle_add
+TimeoutAdd = gobject.timeout_add_seconds
+Main=gtk.main
+Quit=gtk.main_quit
 ################################################################################
-gui_count = 0
-update_count = 0
-gui_change_id = 0
-gui_interval = 0.25
 
-def GuiCount():
-    global gui_count
-    gui_count += 1
-    if gui_count % 10 == 0:
-        Statistics()
-
-def UpdateCount():
-    global update_count
-    update_count += 1
-
-def Statistics():
-    writeLR(' - statistics', '%i GUI changes/%i applet updates - ' % (gui_count, update_count))
-
-def IdleAdd(function, *params):
-    global gui_change_id; global gui_interval
-    gui_id = id()
-    diff = gui_id - gui_change_id
-    if diff < gui_interval and diff > 0:
-        time.sleep(diff)
-        IdleAdd(function, *params)
-    else:
-        gui_change_id = gui_id
-        GobjectIdleAdd(function, *params)
-        GuiCount()
-
-def TimeoutAdd(seconds, function, *params):
-    global gui_change_id; global gui_interval
-    gui_id = id()
-    diff = gui_id - gui_change_id
-    if diff < gui_interval and diff > 0:
-        time.sleep(diff)
-        IdleAdd(function, *params)
-    else:
-        gui_change_id = gui_id
-        GobjectTimeoutAdd(seconds * 1000, function, *params)
-        GuiCount()
-
-class Icon(object):
-    _type = None
-    _file = None
-    _path = None
+class Gui(object):
+    def __init__(self):
+        self.icon_gtk = None
+        self.icon_type = None
+        self.icon_paths = []
+        self.icon_types = {}
+        self.icon_visible = None
+        self.icon_path_notification = None
+        self.tooltip_markup = None
+        self.leftmenu_gtk = None
+        self.leftmenu_items = []
+        self.rightmenu_gtk = None
+        self.rightmenu_items = []
     
-    def __init__(self, type=None, file=None, path=None, paths=[], types={}, icon=None, visible=True):
-        self.paths = paths
-        self.types = types
-        self.icon = icon if icon != None else GtkStatusIcon()
-        self.icon.connect('activate', self.leftclick)
-        self.icon.connect('popup-menu', self.rightclick)
-        
-        self._tooltip = Tooltip(self.icon, thread=True)
-        self._leftmenu = Menu()
-        self._rightmenu = Menu()
-        
-        self.visible = visible
-        if type != None:
-            self.type = type
-        elif path != None:
-            self.path = path
-        elif file != None:
-            self.file = file
-        else:
-            id(self)
+    def icon(self, type=None):
+        if type == None:
+            return self.icon_type
+        elif self.icon_gtk == None:
+            self.icon_init()
+        self.icon_type = type
+        path = self.icon_path_from_type(type)
+        if path != None:
+            self.icon_gtk.set_from_file(path)
     
-    @property
-    def type(self): return self._type
-    
-    @type.setter
-    def type(self, value):
-        id(self)
-        self._type = value
-        self.from_type(value)
-    
-    @property
-    def file(self): return self._file
-    
-    @file.setter
-    def file(self, value):
-        id(self)
-        self._file = value
-        self.from_file(value)
-    
-    @property
-    def path(self): return self._path
-    
-    @path.setter
-    def path(self, value):
-        id(self)
-        self._path = value
-        self.from_path(value)
-    
-    @property
-    def visible(self): return self._visible
-    
-    @visible.setter
-    def visible(self, value):
-        self._visible = value
-        current = self.icon.get_visible()
-        if current != value:
-            IdleAdd(self.icon.set_visible, value)
-    
-    def from_type(self, type):
-        path = self.path_from_type(type)
-        self.from_path(path)
-    
-    def from_file(self, file):
-        path = self.path_from_file(file)
-        self.from_path(path)
-    
-    def from_path(self, path):
-        if self.path != path and path != None:
-            IdleAdd(self.icon.set_from_file, path)
-        self._path = path
-    
-    
-    def path_from_type(self, type):
-        if not type in self.types:
+    def icon_path_from_type(self, type):
+        if not type in self.icon_types:
             return None
-        file = self.types[type]
-        return self.path_from_file(file)
-    
-    def path_from_file(self, file):
-        for path in self.paths:
+        file = self.icon_types[type]
+        for path in self.icon_paths:
             path += '/' + file
             if exists(path):
                 return path
         return None
     
-    @property
-    def tooltip(self): return self._tooltip.text
+    def icon_init(self):
+        self.icon_gtk = GtkStatusIcon()
+        self.icon_gtk.connect('activate', lambda i: self.leftclick(i))
+        self.icon_gtk.connect('popup-menu', lambda i, b, t: self.rightclick(i, b, t))
     
-    @tooltip.setter
-    def tooltip(self, value): self._tooltip.text = value
+    def visible(self, value=None):
+        if None:
+            return self.icon_visible
+        if self.icon_gtk == None:
+            self.icon_init()
+        self.icon_visible = value
+        self.icon_gtk.set_visible(value)
     
-    @property
-    def leftmenu(self): return self._leftmenu.items
-    
-    @leftmenu.setter
-    def leftmenu(self, value): self._leftmenu.items = value
+    def tooltip(self, markup=None):
+        if markup == None:
+            return self.tooltip_markup
+        elif self.icon_gtk == None:
+            self.icon_init()
+        self.tooltip_markup = markup
+        self.icon_gtk.set_tooltip_markup(markup)
+        
+    def leftmenu(self, items=None):
+        if items == None:
+            return self.leftmenu_items
+        self.leftmenu_items = items
+        self.leftmenu_gtk = self.menu(items)
     
     def leftclick(self, icon):
+        if self.leftmenu_gtk == None:
+            return
         button = 1
         time = GtkCurrentEventTime()
-        self._leftmenu.popup(None, None, GtkStatusIconPositionMenu, button,
-                            time, self.icon)
+        self.leftmenu_gtk.popup(None, None, GtkStatusIconPositionMenu, button,
+                            time, self.icon_gtk)
     
-    @property
-    def rightmenu(self): return self._rightmenu.items
-    
-    @rightmenu.setter
-    def rightmenu(self, value): self._rightmenu.items = value
+    def rightmenu(self, items=None):
+        if items == None:
+            return self.rightmenu_items
+        self.rightmenu_items = items
+        self.rightmenu_gtk = self.menu(items)
     
     def rightclick(self, icon, button, time):
-        self._rightmenu.popup(None, None, GtkStatusIconPositionMenu,
-                               button, time, self.icon)
-
-
-class Tooltip(object):
-    _text = None
+        if self.rightmenu_gtk == None:
+            return
+        self.rightmenu_gtk.popup(None, None, GtkStatusIconPositionMenu, button,
+                            time, self.icon_gtk)
     
-    def __init__(self, target, text=None, thread=False):
-        self.target = target
-        self.thread = thread
-        self.text = text
-    
-    @property
-    def text(self): return self._text
-    
-    @text.setter
-    def text(self, value):
-        id(self)
-        self._text = value
-        current = self.target.get_tooltip_markup()
-        if current != value or (current != None and value != ''):
-            if self.thread:
-                IdleAdd(self.target.set_tooltip_markup, value)
-            else:
-                self.target.set_tooltip_markup(value)
-
-
-class Menu(object):
-    _items = None
-    
-    def __init__(self, items=None):
-        self.items = items
-    
-    @property
-    def items(self): return self._items
-    
-    @items.setter
-    def items(self, value):
-        id(self)
-        self._items = value
-        self.menu = Menu.generate(value)
-    
-    def popup(self, parent_shell, parent_item, func, button, time, target):
-        if self.menu != None:
-            IdleAdd(self.menu.popup, parent_shell, parent_item, func, button, time, target)
-    
-    @staticmethod
-    def generate(items):
-        if items == None:
-            return None
+    def menu(self, items):
         items = [item for item in items if item != None]
-        menu = GtkMenu()
+        menu_gtk = GtkMenu()
         for item in items:
-            menu.append(MenuItem.generate(item).item)
-        menu.show_all()
-        return menu
-
-
-class MenuItem(object):
-    _text = None
-    _tooltip = None
-    _submenu = None
-    _function = None
-    _args = None
-    _signal_id = None
+            menu_gtk.append(self.menu_item(item))
+        menu_gtk.show_all()
+        return menu_gtk
     
-    def __init__(self, text, tooltip=None, submenu=None, function=None, args=None):
-        self.text = text
-        self.tooltip = tooltip
-        self.submenu = submenu
-        self.function = function
-        self.args = args
-        
-    @property
-    def text(self): return self._text
-    
-    @text.setter
-    def text(self, value):
-        if value == '-':
-            self.item = GtkSeparatorMenuItem()
-        else:
-            self.item = GtkMenuItem(value)
-    
-    @property
-    def tooltip(self): return self._tooltip
-    
-    @tooltip.setter
-    def tooltip(self, value):
-        self._tooltip = value
-        self._tooltip_obj = Tooltip(self.item, value)
-    
-    @property
-    def submenu(self): return self._submenu.items
-    
-    @submenu.setter
-    def submenu(self, value):
-        self._submenu = Menu(value)
-        self.item.set_submenu(self._submenu.menu)
-    
-    @property
-    def function(self): return self._function
-    
-    @function.setter
-    def function(self, value):
-        self._function = value
-        if value != None:
-            if self._signal_id != None:
-                self.item.disconnect(self._signal_id)
-            if self.args != None:
-                signal = self.item.connect('activate', lambda g, f=value, a=self.args: tryExcept(f,*a))
-            else:
-                signal = self.item.connect('activate', lambda g, f=value: tryExcept(f))
-            self._signal_id = signal
-    
-    @property
-    def args(self): return self._args
-    
-    @args.setter
-    def args(self, value):
-        self._args = value
-        if self.function != None:
-            self.function = self.function
-    
-    @staticmethod
-    def generate(item):        
+    def menu_item(self, item):
         tooltip = None
         submenu = None
         function = None
-        args = None
+        args = ()
         
         if isstr(item):
             text = item
@@ -358,54 +169,46 @@ class MenuItem(object):
                                 tooltip = item[3]
                         else:
                             tooltip = item[2]
-        return MenuItem(text, tooltip, submenu, function, args)
-
-
-class Notifier(object):
-    _items = None
+        
+        if text == '-':
+            menu_item_gtk = GtkSeparatorMenuItem()
+            return menu_item_gtk
+        
+        menu_item_gtk = GtkMenuItem(text)
+        if tooltip != None:
+            menu_item_gtk.set_tooltip_markup(tooltip)
+        if submenu != None:
+            menu_item_gtk.set_submenu(self.menu(submenu))
+        if function != None:
+            menu_item_gtk.connect('activate', lambda g, f=function, a=args: IdleAdd(f,*a))
+        return menu_item_gtk
     
-    def __init__(self, auto=False, icon='', items=[]):
-        self.cmd = 'notify-send -i'
-        self.auto = auto
-        self.icon = icon
-        self.items = items
+    def notify(self, item):
+        if isstr(item):
+            self.notify_show(item)
+        elif istuple(item):
+            if len(item) == 1:
+                self.notify_show(item[0])
+            elif len(item) == 2:
+                if isbool(item[1]):
+                    self.notify_show(item[0], stack=item[1])
+                elif exists(item[1]):
+                    self.notify_show(item[0], icon=item[1])
+                else:
+                    self.notify_show(item[0], item[1])
+            elif len(item) == 3:
+                if exists(item[1]):
+                    self.notify_show(item[0], icon=item[1], stack=item[2])
+                elif exists(item[2]):
+                    self.notify_show(*item)
+                else:
+                    self.notify_show(item[0], item[1], stack=item[2])
+            elif len(item) >= 4:
+                self.notify_show(item[0], item[1], item[2], item[3])
     
-    @property
-    def items(self): return self._items
-    
-    @items.setter
-    def items(self, value):
-        id(self)
-        self._items = value
-        if self.auto: Notifier.show(value, self.icon)
-    
-    @staticmethod
-    def show(items, icon=None):
-        for item in items:
-            if isstr(item):
-                Notifier.execute(item, icon=icon)
-            elif istuple(item):
-                if len(item) == 1:
-                    Notifier.execute(item[0], icon=icon)
-                elif len(item) == 2:
-                    if isbool(item[1]):
-                        Notifier.execute(item[0], icon=icon, stack=item[1])
-                    elif exists(item[1]):
-                        Notifier.execute(item[0], icon=item[1])
-                    else:
-                        Notifier.execute(item[0], item[1], icon)
-                elif len(item) == 3:
-                    if exists(item[1]):
-                        Notifier.execute(item[0], icon=item[1], stack=item[2])
-                    elif exists(item[2]):
-                        Notifier.execute(*item)
-                    else:
-                        Notifier.execute(item[0], item[1], icon=icon, stack=item[2])
-                elif len(item) >= 4:
-                    Notifier.execute(item[0], item[1], item[2], item[3])
-    
-    @staticmethod
-    def execute(title, body=None, icon=None, stack=False):
+    def notify_show(self, title, body=None, icon=None, stack=False):
+        if icon == None:
+            icon = self.icon_path_notification
         n = pynotify.Notification(title, body, icon)
         n.show()
         if not stack:
