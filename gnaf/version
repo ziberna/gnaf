@@ -1,14 +1,20 @@
-[2011-09-03] 3.1.0 Fixed GTK freezes
-                GNAF 2 did most of the stuff on GUI thread, only updating and
-                initializing was done on separate thread. While there were no
-                GTK freezes, GUI sometimes hanged for a bit with 5+ applets
-                running. In 3.1 GUI is still a separate class as in 3.0, but it
-                doesn't do any messy threading within itself. Instead, GNAF
-                always calls GUI class on GUI thread, so there's no chance any
-                of the GTK objects are touched by other threads (which I assume
-                was the root of the problem). The GUI class is pretty spartan
-                for the moment though.
-[2011-09-01] 3.0.3 Notify-send replaced w/ pynotify (msgs don't appear in stack by default anymore)
+[2011-09-03] 3.1.1 "alias" and "ignore" settings:
+                   Any text displayed (tooltips & menu items) can now be either
+                   replaced or completely ignored with regex. Users can list
+                   regex patterns in their GNAF settings file in each applet's
+                   setting dictionary under keys "alias" and "ignore".
+[2011-09-03] 3.1.0 Fixed GTK freezes:
+                   GNAF 2 did most of the stuff on GUI thread, only updating and
+                   initializing was done on separate thread. While there were no
+                   GTK freezes, GUI sometimes hanged for a bit with 5+ applets
+                   running. In 3.1 GUI is still a separate class as in 3.0, but
+                   it doesn't do any messy threading within itself. Instead,
+                   GNAF always calls GUI class on GUI thread, so there's no
+                   chance any of the GTK objects are touched by other threads
+                   (which I assume was the root of the problem). The GUI class
+                   is pretty spartan for the moment though.
+[2011-09-01] 3.0.3 Notify-send replaced w/ pynotify (msgs don't appear in stack
+                   by default anymore)
 [2011-09-01] 3.0.2 Error handling for menu-item-click functions
 [2011-09-01] 3.0.1 GUI throttling & hide option via menu
 [2011-08-30] 3.0.0 MAJOR rewrite

@@ -15,9 +15,9 @@
 #    along with this program.
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
-import time
 import sys
 import os
+import time
 
 import lib.gui as gui
 from lib.tools import id, tolist, dictmerge, Dict, thread, threadTimeout
@@ -200,6 +200,8 @@ class Gnaf(object):
     # GUI methods #
     def gui_init(self):
         self.gui = gui.Gui()
+        self.gui.alias_patterns({} if 'alias' not in self.settings else self.settings['alias'])
+        self.gui.ignore_patterns([] if 'ignore' not in self.settings else self.settings['ignore'])
     
     @property
     def icon(self): return self.value['icon']
@@ -215,7 +217,7 @@ class Gnaf(object):
     
     def icon_init(self):
         self.value['icon'] = 'idle'
-        self.value['visible'] = (not 'visible' in self.settings or self.settings['visible'])
+        self.value['visible'] = ('visible' not in self.settings or self.settings['visible'])
         self.gui.icon_types = self.settings['icon']
         self.gui.icon_paths = [
             '%s/%s' % (Gnaf.user_dir, self.name),
@@ -323,6 +325,7 @@ class Gnaf(object):
     
     def notifications_init(self):
         self.gui.icon_path_notification = self.gui.icon_path_from_type('new')
+        self.gui.notification_stack = self.settings['notification-stack']
     
     # Helper methods #
     def was_set(self, id):

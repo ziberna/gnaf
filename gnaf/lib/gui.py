@@ -15,8 +15,9 @@
 #    along with this program.
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
-import time
 import os; exists = os.path.exists
+import time
+import re
 
 from gnaf.lib.istype import *
 
@@ -66,6 +67,9 @@ class Gui(object):
         self.leftmenu_items = []
         self.rightmenu_gtk = None
         self.rightmenu_items = []
+        self.notification_stack = None
+        self.alias_regex = []
+        self.ignore_regex = []
     
     def icon(self, type=None):
         if type == None:
@@ -103,8 +107,11 @@ class Gui(object):
     def tooltip(self, markup=None):
         if markup == None:
             return self.tooltip_markup
+        if self.ignore(markup):
+            return
         elif self.icon_gtk == None:
             self.icon_init()
+        markup = self.alias(markup)
         self.tooltip_markup = markup
         self.icon_gtk.set_tooltip_markup(markup)
         
@@ -138,7 +145,9 @@ class Gui(object):
         items = [item for item in items if item != None]
         menu_gtk = GtkMenu()
         for item in items:
-            menu_gtk.append(self.menu_item(item))
+            menu_item_gtk = self.menu_item(item)
+            if menu_item_gtk != None:
+                menu_gtk.append(menu_item_gtk)
         menu_gtk.show_all()
         return menu_gtk
     
@@ -173,9 +182,14 @@ class Gui(object):
         if text == '-':
             menu_item_gtk = GtkSeparatorMenuItem()
             return menu_item_gtk
+        if self.ignore(text):
+            return None
         
+        text = self.alias(text)
         menu_item_gtk = GtkMenuItem(text)
-        if tooltip != None:
+        
+        if tooltip != None and not self.ignore(tooltip):
+            tooltip = self.alias(tooltip)
             menu_item_gtk.set_tooltip_markup(tooltip)
         if submenu != None:
             menu_item_gtk.set_submenu(self.menu(submenu))
@@ -207,9 +221,33 @@ class Gui(object):
                 self.notify_show(item[0], item[1], item[2], item[3])
     
     def notify_show(self, title, body=None, icon=None, stack=False):
+        if self.ignore(title) or self.ignore(body):
+            return
+        title = self.alias(title)
+        body = self.alias(body)
         if icon == None:
             icon = self.icon_path_notification
         n = pynotify.Notification(title, body, icon)
         n.show()
-        if not stack:
+        if not self.notification_stack or not stack:
             n.close()
+    
+    def alias_patterns(self, patterns):
+        self.alias_regex = [(re.compile(p), patterns[p]) for p in patterns]
+    
+    def alias(self, str):
+        if not isstr(str):
+            return str
+        for alias in self.alias_regex:
+            if alias[0].search(str):
+                return alias[0].sub(alias[1], str)
+        return str
+    
+    def ignore_patterns(self, patterns):
+        self.ignore_regex = [re.compile(p) for p in patterns]
+        
+    def ignore(self, str):
+        for ignore in self.ignore_regex:
+            if ignore.search(str):
+                return True
+        return False
