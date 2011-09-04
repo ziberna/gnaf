@@ -25,7 +25,7 @@ def isclass(var): return (isclassobj(var) or istype(var, 'type'))
 
 def isobj(var): return istype(var, 'object')
 
-def isstr(var): return istype(var, 'str')
+def isstr(var): return istype(var, 'str') or istype(var, 'unicode')
 
 def isdict(var): return istype(var, 'dict')
 

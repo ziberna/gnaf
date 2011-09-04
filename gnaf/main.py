@@ -143,7 +143,7 @@ def find_applet(user_dir, applet_dir, setting, setting_name):
     applets = [applet for applet in applets if isgnaf(applet)]
     for applet in applets:
         logLR('%s: class %s (from %s)' % (setting_name, name(applet), applet_name), 'FOUND APPLET')
-        applet.setting_name = setting_name
+        applet.instance_name = setting_name
         applet.name = applet_name
     return applets
 

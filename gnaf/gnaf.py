@@ -20,7 +20,7 @@ import os
 import time
 
 import lib.gui as gui
-from lib.tools import id, tolist, dictmerge, Dict, thread, threadTimeout
+from lib.tools import id, tolist, dictmerge, Dict, thread, threadTimeout, Regex
 from lib.write import logC, logTime, debug
 from lib.format import timestamp
 
@@ -55,6 +55,9 @@ class Gnaf(object):
         self.appletting = False
         self.value = Dict()
         self.id = Dict(1)
+        self.regex = Regex()
+        self.regex.alias_patterns = (self.settings['alias'] if self.settings['alias'] else {})
+        self.regex.ignore_patterns = (self.settings['ignore'] if self.settings['ignore'] else [])
     
     # Main methods #
     @staticmethod
@@ -200,8 +203,7 @@ class Gnaf(object):
     # GUI methods #
     def gui_init(self):
         self.gui = gui.Gui()
-        self.gui.alias_patterns({} if 'alias' not in self.settings else self.settings['alias'])
-        self.gui.ignore_patterns([] if 'ignore' not in self.settings else self.settings['ignore'])
+        self.gui.regex = self.regex
     
     @property
     def icon(self): return self.value['icon']
@@ -245,7 +247,7 @@ class Gnaf(object):
     
     @tooltip.setter
     def tooltip(self, value):
-        if self.appletting:
+        if self.appletting:                
             self.value['tooltip-applet'] = value
         elif value == None:
             value = self.value['tooltip-applet']
@@ -257,8 +259,7 @@ class Gnaf(object):
     def tooltip_setter(self, value): self.gui.tooltip(value)
     
     def tooltip_init(self):
-        self.value['tooltip-applet'] = None
-        self.value['tooltip'] = None
+        pass
     
     @property
     def data(self): return self.value['data']
@@ -320,8 +321,11 @@ class Gnaf(object):
         if not self.was_set(self.id['notifications']):
             self.id['notifications'] = id()
             self.value['notifications'] = value
-            for notification in tolist(value):
-                self.gui.notify(notification)
+            gui.IdleAdd(self.notifications_setter, tolist(value))
+    
+    def notifications_setter(self, value):
+        for notification in value:
+            self.gui.notify(notification)
     
     def notifications_init(self):
         self.gui.icon_path_notification = self.gui.icon_path_from_type('new')
@@ -341,9 +345,9 @@ class Gnaf(object):
     
     def log(self, subject=None, status=None):
         if subject != None:
-            subject = '%s: %s' % (self.setting_name, subject)
+            subject = '%s: %s' % (self.instance_name, subject)
         else:
-            subject = self.setting_name
+            subject = self.instance_name
         logTime(subject, status)
     
     def debug(self):
@@ -376,3 +380,9 @@ class Gnaf(object):
     
     def show(self):
         self.visible = True
+    
+    def alias(self, str):
+        return self.regex.alias(str)
+    
+    def ignore(self, str):
+        return self.regex.ignore(str)
