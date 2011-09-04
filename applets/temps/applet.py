@@ -25,6 +25,7 @@ class TempsApplet(gnaf.Gnaf):
         'icon':{
             'idle':'temp.png',
             'error':'temp.png',
+            'new':'temp5.png',
             'temp1':'temp1.png',
             'temp2':'temp2.png',
             'temp3':'temp3.png',
@@ -53,28 +54,29 @@ class TempsApplet(gnaf.Gnaf):
     def update(self):
         temps = Temps(self.method)
         self.critical = False
+        self.critical_value = 0.0
         data = []
         templist = []
         fanlist = []
         for temp in temps:
+            if self.ignore(temp['id']):
+                continue
             values = []
-            tlist = []
-            flist = []
             for t in temp['values']:
+                if self.ignore(t['id']):
+                    continue
                 if t['value'][-1] == 'C':
                     val = float(t['value'].replace('\xc2\xb0C', ''))
-                    tlist.append(val)
-                    if val >= self.max:
+                    templist.append(val)
+                    if val >= self.max and val > self.critical_value:
                         self.critical = True
                         self.critical_value = val
                         self.critical_id = t['id']
                 else:
                     val = float(t['value'])
-                    flist.append(val)
+                    fanlist.append(val)
                     t['value'] = '%s RPM' % t['value']
                 values.append('%s: %s' % (t['id'], t['value']))
-            templist.extend(tlist)
-            fanlist.extend(flist)
             data.append((
                 temp['id'],
                 values
@@ -83,8 +85,9 @@ class TempsApplet(gnaf.Gnaf):
         fan_avg = sum(fanlist) / len(fanlist)
         
         step = '5'
+        top = max(templist)
         for key in self.steps:
-            if temp_avg < self.steps[key]:
+            if top < self.steps[key]:
                 step = key
                 break
         self.icon = 'temp' + step
@@ -101,6 +104,6 @@ class TempsApplet(gnaf.Gnaf):
     def notify(self):
         if self.critical:
             value = self.critical_value
-            id = self.critical_id.capitalize()
+            id = self.critical_id
             self.notifications = '%s is at %.1f\xc2\xb0C!' % (id, value)
         return self.critical
