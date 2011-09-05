@@ -1,3 +1,10 @@
+[2011-09-05] 3.1.3 Added wrapping settings and some minor changes:
+                   Users can now set width of text for menu ('menu-wrap'),
+                   tooltips ('tooltip-wrap') and icon tooltip
+                   ('icon-tooltip-wrap'). Each of these settings, if not set,
+                   fall back on global setting 'wrap', which can also be set.
+                   'wrap' is by default 50.
+
 [2011-09-04] 3.1.2 Minor fixes and alias/ignore access for applet developers
 
 [2011-09-03] 3.1.1 "alias" and "ignore" settings:

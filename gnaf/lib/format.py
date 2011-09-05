@@ -16,6 +16,7 @@
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
 import time
+import textwrap
 from gnaf.lib.istype import isstr
 
 def chop(seq, length, start=0):
@@ -61,3 +62,16 @@ def bashQuotes(str):
 def timestamp(unix_epoch=None):
     if unix_epoch == None: unix_epoch = time.time()
     return time.strftime('%H:%M:%S', time.localtime(unix_epoch))
+
+# built-in textwrap removes existing newlines. setting replace_whitespace to
+# False doesn't really work, because it ignores newlines while wrapping
+def wrap(text, width=80, indent=0):
+    if width <= 0: return text
+    lines = text.split('\n')
+    wrapped = []
+    for line in lines:
+        line = ' ' * indent + line
+        if line > width:
+            line = textwrap.fill(line, width)
+        wrapped.append(line)
+    return '\n'.join(wrapped)

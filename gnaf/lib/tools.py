@@ -118,7 +118,7 @@ class Regex(object):
         self._ignore_patterns = patterns
 
 
-class Shell:
+class Shell(object):
     def __init__(self, command):
         self.command = command
         p = sp.Popen(command, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)

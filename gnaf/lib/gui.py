@@ -21,6 +21,7 @@ import re
 
 from gnaf.lib.istype import *
 from gnaf.lib.tools import Regex
+from gnaf.lib.format import wrap
 
 ################################################################################
 # GTK3 has issues with status icon. The following variables will allow me a    #
@@ -70,6 +71,9 @@ class Gui(object):
         self.rightmenu_items = []
         self.notification_stack = None
         self.regex = Regex()
+        self.menu_wrap = 50
+        self.tooltip_wrap = 50
+        self.icon_tooltip_wrap = 50
     
     def icon(self, type=None):
         if type == None:
@@ -111,7 +115,7 @@ class Gui(object):
             return
         elif self.icon_gtk == None:
             self.icon_init()
-        markup = self.regex.alias(markup)
+        markup = wrap(self.regex.alias(markup), self.icon_tooltip_wrap)
         self.tooltip_markup = markup
         self.icon_gtk.set_tooltip_markup(markup)
         
@@ -185,11 +189,11 @@ class Gui(object):
         if self.regex.ignore(text):
             return None
         
-        text = self.regex.alias(text)
+        text = wrap(self.regex.alias(text), self.menu_wrap)
         menu_item_gtk = GtkMenuItem(text)
         
         if tooltip != None and not self.regex.ignore(tooltip):
-            tooltip = self.regex.alias(tooltip)
+            tooltip = wrap(self.regex.alias(tooltip), self.tooltip_wrap)
             menu_item_gtk.set_tooltip_markup(tooltip)
         if submenu != None:
             menu_item_gtk.set_submenu(self.menu(submenu))

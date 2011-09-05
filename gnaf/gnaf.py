@@ -23,12 +23,35 @@ import lib.gui as gui
 from lib.tools import id, tolist, dictmerge, Dict, thread, threadTimeout, Regex
 from lib.write import logC, logTime, debug
 from lib.format import timestamp
+from lib.istype import isint
 
 GnafApplets = []
 
+DefaultSettings = {
+    'interval':60,
+    'icon':{
+        'idle':'idle.png',
+        'new':'new.png',
+        'updating':'updating.png',
+        'error':'error.png'
+    },
+    'enabled':True,
+    'debug':True,
+    'visible':True,
+    'notify':True,
+    'alias':{},
+    'ignore':[],
+    'notification-stack':False,
+    'menu-wrap':-1,
+    'tooltip-wrap':-1,
+    'icon-tooltip-wrap':-1,
+    'wrap':50,
+}
+
 class Gnaf(object):    
     def __init__(self, settings):
-        self.settings = dictmerge(self.settings, settings)
+        global DefaultSettings
+        self.settings = dictmerge(DefaultSettings, self.settings, settings)
         self.interval = self.settings['interval'] * 60
         # Flags and IDs initialization
         self.flag_init()
@@ -51,13 +74,13 @@ class Gnaf(object):
         self.initialize_id = 0
         self.updating = False
         self.update_id = 0
-        self.notify_enabled = ('notify' not in self.settings or self.settings['notify'])
+        self.notify_enabled = self.settings['notify']
         self.appletting = False
         self.value = Dict()
         self.id = Dict(1)
         self.regex = Regex()
-        self.regex.alias_patterns = (self.settings['alias'] if self.settings['alias'] else {})
-        self.regex.ignore_patterns = (self.settings['ignore'] if self.settings['ignore'] else [])
+        self.regex.alias_patterns = self.settings['alias']
+        self.regex.ignore_patterns = self.settings['ignore']
     
     # Main methods #
     @staticmethod
@@ -80,6 +103,7 @@ class Gnaf(object):
         self.enabled = False
         self.running = False
         self.visible = False
+        gui.IdleAdd(self.gui_del)
         global GnafApplets
         GnafApplets.remove(self)
         if len(GnafApplets) == 0:
@@ -135,7 +159,7 @@ class Gnaf(object):
         # Determine success
         if success:
             self.initialized = True
-            self.log('Initialization', 'TRUE')
+            self.log('Initialization', 'DONE')
             self.tooltip = 'Initialized.'
             self.update_id = id()
             thread(self.run, self.update_id)
@@ -166,11 +190,11 @@ class Gnaf(object):
             self.appletting = False
         # Determine success
         if success == True:
-            self.log('Update', 'TRUE')
+            self.log('Update', 'NEW')
             self.icon = 'new'
             self.tooltip = None
         elif success == False:
-            self.log('Update', 'FALSE')
+            self.log('Update', 'OLD')
             self.icon = 'idle'
             self.tooltip = None
         else:
@@ -194,9 +218,9 @@ class Gnaf(object):
             self.debug()
         
         if success == True:
-            self.log('Notify', 'TRUE')
+            self.log('Notify', 'YES')
         elif success == False:
-            self.log('Notify', 'FALSE')
+            self.log('Notify', 'NO')
         else:
             self.log('Notify', 'ERROR')
     
@@ -204,6 +228,21 @@ class Gnaf(object):
     def gui_init(self):
         self.gui = gui.Gui()
         self.gui.regex = self.regex
+        
+        wrap = self.settings['wrap']
+        menu_wrap = self.settings['menu-wrap']
+        tooltip_wrap = self.settings['tooltip-wrap']
+        icon_tooltip_wrap = self.settings['icon-tooltip-wrap']
+        
+        if menu_wrap <= 0: menu_wrap = wrap
+        if tooltip_wrap <= 0: tooltip_wrap = wrap
+        if icon_tooltip_wrap <= 0: icon_tooltip_wrap = wrap
+
+        self.gui.menu_wrap = menu_wrap
+        self.gui.tooltip_wrap = tooltip_wrap
+        self.gui.icon_tooltip_wrap = icon_tooltip_wrap
+    
+    def gui_del(self): del self.gui
     
     @property
     def icon(self): return self.value['icon']
@@ -303,7 +342,7 @@ class Gnaf(object):
             ('Update now', self.run_manual),
             ('Clear data', self.clear),
             ('Mark as idle', self.mark_as_idle) if self.icon != 'idle' else None,
-            ('%s notifications' % ('Disable' if self.notify_enabled else 'Enable'), self.notify_enable_disable),
+            ('%s notifications' % ('Disable' if self.settings['notify'] else 'Enable'), self.notify_enable_disable),
             '-',
             ('Hide', self.hide),
             ('Disable' if self.enabled else 'Enable', self.enable_disable),
