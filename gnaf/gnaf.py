@@ -74,7 +74,6 @@ class Gnaf(object):
         self.initialize_id = 0
         self.updating = False
         self.update_id = 0
-        self.notify_enabled = self.settings['notify']
         self.appletting = False
         self.value = Dict()
         self.id = Dict(1)
@@ -149,25 +148,25 @@ class Gnaf(object):
         self.initialize_id = id()
         try:
             self.appletting = True
-            success = self.initialize()
+            self.success = self.initialize()
         except:
-            success = None
+            self.success = None
             self.initialize_id = 0
             self.debug()
         finally:
             self.appletting = False
         # Determine success
-        if success:
+        if self.success:
             self.initialized = True
             self.log('Initialization', 'DONE')
-            self.tooltip = 'Initialized.'
             self.update_id = id()
             thread(self.run, self.update_id)
         else:
             self.log('Initialization', 'ERROR')
             self.icon = 'error'
-            self.tooltip = self.error_message()
+            self.context = []
             threadTimeout(self.interval, self.run)
+        self.tooltip = None
         # Final
         self.initializing = False
     
@@ -181,45 +180,43 @@ class Gnaf(object):
         self.update_id = id()
         try:
             self.appletting = True
-            success = self.update()
+            self.success = self.update()
         except:
-            success = None
+            self.success = None
             self.update_id = 0
             self.debug()
         finally:
             self.appletting = False
         # Determine success
-        if success == True:
+        if self.success == True:
             self.log('Update', 'NEW')
             self.icon = 'new'
-            self.tooltip = None
-        elif success == False:
+        elif self.success == False:
             self.log('Update', 'OLD')
             self.icon = 'idle'
-            self.tooltip = None
         else:
             self.log('Update', 'ERROR')
             self.icon = 'error'
-            self.tooltip = self.error_message()
+        self.tooltip = None    
         self.context = []
         # Add next update interval
         self.update_id = id()
         threadTimeout(self.interval, self.run, self.update_id)
         # Final
         self.updating = False
-        if self.notify_enabled:
+        if self.settings['notify']:
             self.notify_applet()
     
     def notify_applet(self):
         try:
-            success = self.notify()
+            self.success = self.notify()
         except:
-            success = None
+            self.success = None
             self.debug()
         
-        if success == True:
+        if self.success == True:
             self.log('Notify', 'YES')
-        elif success == False:
+        elif self.success == False:
             self.log('Notify', 'NO')
         else:
             self.log('Notify', 'ERROR')
@@ -238,9 +235,9 @@ class Gnaf(object):
         if tooltip_wrap <= 0: tooltip_wrap = wrap
         if icon_tooltip_wrap <= 0: icon_tooltip_wrap = wrap
 
-        self.gui.menu_wrap = menu_wrap
-        self.gui.tooltip_wrap = tooltip_wrap
-        self.gui.icon_tooltip_wrap = icon_tooltip_wrap
+        self.gui.menu_wrap = self.settings['menu-wrap'] = menu_wrap
+        self.gui.tooltip_wrap = self.settings['tooltip-wrap'] = tooltip_wrap
+        self.gui.icon_tooltip_wrap = self.settings['icon-tooltip-wrap'] = icon_tooltip_wrap
     
     def gui_del(self): del self.gui
     
@@ -323,11 +320,20 @@ class Gnaf(object):
     @context.setter
     def context(self, value):
         value = tolist(value)
+        
         if self.appletting:
             self.value['context-applet'] = value
             value += ['-']
-        elif self.updating:
-            self.value['context-time'] = ['Next update at %s' % timestamp(id() + self.interval), '-']
+        else:
+            time = timestamp(id() + self.interval)
+            if self.updating:
+                if self.success == None:
+                    self.value['context-time'] = ['Error while updating. Next try at '+time,'-']
+                else:
+                    self.value['context-time'] = ['Next update at '+time,'-']
+            elif self.initializing and self.success == None:
+                self.value['context-time'] = ['Error while initializing. Next try at '+time,'-']
+        
         self.value['context-default'] = self.context_default()
         value += self.value['context-time'] + self.value['context-default']
         gui.IdleAdd(self.context_setter, value)
@@ -355,7 +361,7 @@ class Gnaf(object):
     
     @notifications.setter
     def notifications(self, value):
-        if not self.notify_enabled:
+        if not self.settings['notify']:
             return
         if not self.was_set(self.id['notifications']):
             self.id['notifications'] = id()
@@ -390,28 +396,16 @@ class Gnaf(object):
         logTime(subject, status)
     
     def debug(self):
-        if self.settings['debug'] or self.settings['debug'] == None:
+        if self.settings['debug']:
             debug()
-    
-    def error_message(self):
-        if self.initializing:
-            message = 'Error while initializing.'
-        elif self.updating:
-            message = 'Error while updating.'
-        else:
-            message = 'Error occurred.'
-        if self.updating or self.initializing:
-            time = timestamp(id() + self.interval)
-            message += ' Next try at %s' % time
-        return message
     
     def mark_as_idle(self):
         self.icon = 'idle'
         self.context = []
     
     def notify_enable_disable(self):
-        self.notify_enabled = not self.notify_enabled
-        self.log('Notifications enabled', 'TRUE' if self.notify_enabled else 'FALSE')
+        self.settings['notify'] = not self.settings['notify']
+        self.log('Notifications enabled', 'TRUE' if self.settings['notify'] else 'FALSE')
         self.context = []
     
     def hide(self):

@@ -16,6 +16,7 @@
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
 import sys
+import re
 import traceback
 
 from gnaf.lib.istype import isstr
@@ -37,15 +38,24 @@ def writeLR(left, rigth, fill=''):
     writeln(formatLR(left, rigth, fill, 1, width))
 
 def debug():
-    writeln(formatC('DEBUG OUTPUT', '#', 1, width))
+    text = formatC('DEBUG OUTPUT', '#', 1, width)
+    text = re.sub(r'(#+)',r'\033[31m\1\033[0m',text)
+    writeln(text)
     traceback.print_exc()
-    writeln(formatC('END DEBUG OUTPUT', '#', 1, width))
+    text = formatC('END DEBUG OUTPUT', '#', 1, width)
+    text = re.sub(r'(#+)',r'\033[31m\1\033[0m',text)
+    writeln(text)
 
 def logC(text):
     writeln(formatC(text, '-', 1, width))
 
 def logLR(left, right):
-    writeln(formatLR(left, '['+right+']', '', 1, width))
+    text = formatLR(left, '['+right+']', '', 1, width)
+    text = re.sub(r'(DONE|TRUE|NEW|YES)',r'\033[32m\1\033[0m',text)
+    text = re.sub(r'(NO|FALSE|OLD)',r'\033[33m\1\033[0m',text)
+    text = re.sub(r'(IMPORT ERROR|ERROR)',r'\033[31m\1\033[0m',text)
+    text = re.sub(r'(FOUND APPLET|\.\.\.|QUIT)',r'\033[36m\1\033[0m',text)
+    writeln(text)
 
 def logTime(subject, status=None):
     subject = '[%s] %s' % (timestamp(), subject)
