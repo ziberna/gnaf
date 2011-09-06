@@ -104,6 +104,6 @@ class TempsApplet(gnaf.Gnaf):
     def notify(self):
         if self.critical:
             value = self.critical_value
-            id = self.critical_id
+            id = self.alias(self.critical_id).capitalize()
             self.notifications = '%s is at %.1f\xc2\xb0C!' % (id, value)
         return self.critical
