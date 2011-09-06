@@ -66,8 +66,10 @@ class RTorrentApplet(gnaf.Gnaf):
         ETA = 0
         
         for t in self.torrents:
-            if len(t['name']) > 30:
-                t['name'] = t['name'][:27] + '...'
+            if len(t['name']) > self.settings['menu-wrap']-16:
+                t_name = t['name'][:self.settings['menu-wrap']-19] + '...'
+            else:
+                t_name = t['name']
             if t['state'] == 0:
                 if t['percentage'] == 100.0:
                     state = 'completed'
@@ -88,6 +90,7 @@ class RTorrentApplet(gnaf.Gnaf):
                     downloading_count += 1
             if t['ETA'] > ETA: ETA = t['ETA']
             info = [
+                ('Full name',t['name']),
                 ('ETA', seconds_to_str(t['ETA'])) if t['ETA'] > 0 else None,
                 ('Downloaded', bytes_to_str(t['downloaded']) + ((' / ' + bytes_to_str(t['size'])) if t['percentage'] != 100.0 else '')),
                 ('Uploaded', bytes_to_str(t['uploaded'])),
@@ -100,7 +103,7 @@ class RTorrentApplet(gnaf.Gnaf):
             ]
             info = [i for i in info if i != None]
             data.append((
-                '[%s] %s (%s%%)' % (state_symbol, t['name'], ('%.2f' % t['percentage']) if t['percentage'] != 100.0 else '100'),
+                '[%s] %s (%s%%)' % (state_symbol, t_name, ('%.2f' % t['percentage']) if t['percentage'] != 100.0 else '100'),
                 formatTooltip(info)
             ))
         self.data = data
