@@ -16,6 +16,7 @@
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
 import os
+import re
 from gnaf.lib.tools import Shell
 
 class Package:
@@ -68,10 +69,15 @@ class ArchPkgs:
         if pkgs == None:
             pkgs = self.pkgs
         for pkg in pkgs:
-            output = Shell('pacman -Ss ^%s$ -b %s' % (pkg.name, self.temp_dir)).output.split('\n')[0]
-            output = output.split(' ')
-            repo = output[0].split('/')[0]
-            version = output[1]
+            #output = Shell('pacman -Ss ^%s$ -b %s' % (re.escape(pkg.name), self.temp_dir)).output.split('\n')[0]
+            #output = output.split(' ')
+            #repo = output[0].split('/')[0]
+            #version = output[1]
+            output = Shell('pacman -Si %s -b %s' % (re.escape(pkg.name), self.temp_dir)).output
+            repo = re.search(r'Repository\s*:\s*([0-9A-z\-\._\+]+)',output)
+            repo = re.sub(r'Repository\s*:\s*([0-9A-z\-\._\+]+)',r'\1',repo.group(0))
+            version = re.search(r'Version\s*:\s*([0-9A-z\-\._\+]+)',output)
+            version = re.sub(r'Version\s*:\s*([0-9A-z\-\._\+]+)',r'\1',version.group(0))
             pkg.repo = repo
             pkg.version = version
         self.pkgs = pkgs
@@ -81,7 +87,7 @@ class ArchPkgs:
         return (output.split('\n')[0] == 'error: failed to init transaction (unable to lock database)')
     
     def pacman_no_conn(self, output):
-        return False # old code didn't work
+        return False # old code didn't work, this is just a placeholder
     
     def aur(self):
         if self.aur_method == 'cower':
