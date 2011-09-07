@@ -51,10 +51,11 @@ def logC(text):
 
 def logLR(left, right):
     text = formatLR(left, '['+right+']', '', 1, width)
-    text = re.sub(r'(DONE|TRUE|NEW|YES)',r'\033[32m\1\033[0m',text)
-    text = re.sub(r'(NO|FALSE|OLD)',r'\033[33m\1\033[0m',text)
-    text = re.sub(r'(IMPORT ERROR|ERROR)',r'\033[31m\1\033[0m',text)
-    text = re.sub(r'(FOUND APPLET|\.\.\.|QUIT)',r'\033[36m\1\033[0m',text)
+    text = re.sub(r'(?<=^\[\d\d:\d\d:\d\d\]\s)([A-z_]+)',r'\033[35m\1\033[0m',text)
+    text = re.sub(r'(?<=\[)(DONE|TRUE|NEW|YES)(?=\]$)',r'\033[32m\1\033[0m',text)
+    text = re.sub(r'(?<=\[)(NO|FALSE|OLD)(?=\]$)',r'\033[33m\1\033[0m',text)
+    text = re.sub(r'(?<=\[)(IMPORT ERROR|ERROR)(?=\]$)',r'\033[31m\1\033[0m',text)
+    text = re.sub(r'(?<=\[)(FOUND APPLET|\.\.\.|QUIT)(?=\]$)',r'\033[36m\1\033[0m',text)
     writeln(text)
 
 def logTime(subject, status=None):

@@ -115,7 +115,9 @@ class Gui(object):
             return
         elif self.icon_gtk == None:
             self.icon_init()
-        markup = wrap(self.regex.alias(markup), self.icon_tooltip_wrap)
+        markup = self.regex.alias(markup)
+        markup = wrap(markup, self.icon_tooltip_wrap)
+        markup = self.markup_escape(markup)
         self.tooltip_markup = markup
         self.icon_gtk.set_tooltip_markup(markup)
         
@@ -193,7 +195,9 @@ class Gui(object):
         menu_item_gtk = GtkMenuItem(text)
         
         if tooltip != None and not self.regex.ignore(tooltip):
-            tooltip = wrap(self.regex.alias(tooltip), self.tooltip_wrap)
+            tooltip = self.regex.alias(tooltip)
+            tooltip = wrap(tooltip, self.tooltip_wrap)
+            tooltip = self.markup_escape(tooltip)
             menu_item_gtk.set_tooltip_markup(tooltip)
         if submenu != None:
             menu_item_gtk.set_submenu(self.menu(submenu))
@@ -235,3 +239,10 @@ class Gui(object):
         n.show()
         if not self.notification_stack or not stack:
             n.close()
+    
+    def markup_escape(self, markup):
+        markup = re.sub(r'<(/?(b|i|u|s|span|big|sub|sup|small|tt))>',r'[\1]',markup)
+        markup = markup.replace('<','&lt;').replace('>','&gt;')
+        markup = re.sub(r'\[(/?(b|i|u|s|span|big|sub|sup|small|tt))\]',r'<\1>',markup)
+        return markup
+        

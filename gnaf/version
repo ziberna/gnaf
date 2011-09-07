@@ -1,3 +1,10 @@
+[2011-09-07] 3.1.5 Markup escaping while preserving actual tags
+                   Until now applets had to do markup escaping on their own
+                   for strings such as "<username@doman.tld>". GNAF now detects
+                   what is and isn't Pango markup and escapes strings
+                   appropriately (e.g. "<" is replaced with "&lt;") while
+                   still preserving actual tags (e.g. "<b>" and "</b>").
+
 [2011-09-06] 3.1.4 Minor changes/cleanup and colored logging
 
 [2011-09-05] 3.1.3 Added wrapping settings and some minor changes:

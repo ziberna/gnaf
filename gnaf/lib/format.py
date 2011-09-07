@@ -71,7 +71,7 @@ def wrap(text, width=80, indent=0):
     wrapped = []
     for line in lines:
         line = ' ' * indent + line
-        if line > width:
+        if len(line) > width:
             line = textwrap.fill(line, width)
         wrapped.append(line)
     return '\n'.join(wrapped)

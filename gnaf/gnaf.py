@@ -204,7 +204,7 @@ class Gnaf(object):
         threadTimeout(self.interval, self.run, self.update_id)
         # Final
         self.updating = False
-        if self.settings['notify']:
+        if self.success and self.settings['notify']:
             self.notify_applet()
     
     def notify_applet(self):
