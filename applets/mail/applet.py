@@ -70,11 +70,10 @@ class MailApplet(gnaf.Gnaf):
                 continue
             mails = []
             for mail in self.mails[mailbox]:
-                mail_from = mail['From'].replace('<','&lt;').replace('>','&gt;')
                 mails.append((mail['Subject'],
                              self.open_browser,
                              formatTooltip([
-                                ('From', mail_from),
+                                ('From', mail['From']),
                                 ('Date', mail['Date'])
                              ])
                 ))
