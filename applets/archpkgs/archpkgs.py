@@ -20,11 +20,13 @@ import re
 from gnaf.lib.tools import Shell
 
 class Package:
-    def __init__(self, name, version=None, version_old=None, repo=None):
+    def __init__(self, name, version=None, version_old=None, repo=None, groups=None, info={}):
         self.name = name
         self.version = version
         self.version_old = version_old
         self.repo = repo
+        self.groups = groups
+        self.info = info
 
 class ArchPkgs:
     temp_dir = '/tmp/gnaf-arch-pkgs'
@@ -69,19 +71,24 @@ class ArchPkgs:
         if pkgs == None:
             pkgs = self.pkgs
         for pkg in pkgs:
-            #output = Shell('pacman -Ss ^%s$ -b %s' % (re.escape(pkg.name), self.temp_dir)).output.split('\n')[0]
-            #output = output.split(' ')
-            #repo = output[0].split('/')[0]
-            #version = output[1]
-            output = Shell('pacman -Si %s -b %s' % (re.escape(pkg.name), self.temp_dir)).output
-            repo = re.search(r'Repository\s*:\s*([0-9A-z\-\._\+]+)',output)
-            repo = re.sub(r'Repository\s*:\s*([0-9A-z\-\._\+]+)',r'\1',repo.group(0))
-            version = re.search(r'Version\s*:\s*([0-9A-z\-\._\+]+)',output)
-            version = re.sub(r'Version\s*:\s*([0-9A-z\-\._\+]+)',r'\1',version.group(0))
-            pkg.repo = repo
-            pkg.version = version
+            pkg.info = self.parse_Info(self.pacman_Info(pkg.name))
+            pkg.repo = pkg.info['Repository']
+            pkg.version = pkg.info['Version']
+            pkg.groups = pkg.info['Groups']
         self.pkgs = pkgs
         return self.pkgs
+    
+    def pacman_Info(self, name):
+        return Shell("pacman -Si '%s' -b %s" % (name, self.temp_dir)).output
+    
+    def parse_Info(self, output):
+        info = [[i.strip() for i in line.partition(':')] for line in output.split('\n') if ':' in line]
+        dict = {}
+        for i in range(len(info)):
+            dict[i] = (info[i][0],info[i][2])
+        for i in info:
+            dict[i[0]] = i[2]
+        return dict
     
     def pacman_db_lock(self, output):
         return (output.split('\n')[0] == 'error: failed to init transaction (unable to lock database)')
@@ -102,4 +109,9 @@ class ArchPkgs:
             if c[0] == 'error:':
                 continue
             else:
-                self.pkgs.append(Package(c[1], c[4], c[2], 'aur'))
+                pkg = Package(c[1], c[4], c[2], 'aur')
+                pkg.info = self.parse_Info(self.cower_Info(pkg.name))
+                self.pkgs.append(pkg)
+    
+    def cower_Info(self, name):
+        return Shell("cower -ii '%s'" % name).output

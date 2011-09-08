@@ -18,6 +18,9 @@
 import gnaf
 from archpkgs import ArchPkgs
 
+from gnaf.lib.format import formatTooltip
+from gnaf.lib.istype import isint
+
 class ArchPkgsApplet(gnaf.Gnaf):
     settings = {
         'interval':15,
@@ -50,7 +53,7 @@ class ArchPkgsApplet(gnaf.Gnaf):
         count = len(self.pkgs)
         if count == 0:
             self.tooltip = 'No updates, your system is up-to-date!'
-            self.data = 'What, you think I\'m lying?'
+            self.data = 'Your system is up-to-date!'
             return False
         else:
             self.tooltip = '%i update(s)!' % count
@@ -59,9 +62,11 @@ class ArchPkgsApplet(gnaf.Gnaf):
                 repo_pkgs = [p for p in self.pkgs if p.repo == repo]
                 repo_count = len(repo_pkgs)
                 if repo_count > 0:
+                    p = repo_pkgs[0]
                     data.append((
                         '%s (%i)' % (repo, repo_count),
-                        ['%s (%s -> %s)' % (p.name, p.version_old, p.version) for p in repo_pkgs]
+                        [('%s (%s -> %s)' % (p.name, p.version_old, p.version),
+                          formatTooltip([(p.info[key][0],p.info[key][1]) for key in p.info if isint(key)])) for p in repo_pkgs]
                     ))
             self.data = data
             return True
