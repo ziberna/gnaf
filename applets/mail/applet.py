@@ -49,6 +49,8 @@ class MailApplet(gnaf.Gnaf):
             sett['port'],
             sett['ssl']
         )
+        if self.Mail == None:
+            return None
         self.mailboxes = sett['mailboxes']
         self.mails_old = {}
         
