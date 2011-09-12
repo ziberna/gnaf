@@ -39,7 +39,7 @@ GtkMenuItem = gtk.MenuItem
 GtkSeparatorMenuItem = gtk.SeparatorMenuItem
 GtkCurrentEventTime = gtk.get_current_event_time
 
-# left unchanged:
+# left unchanged (can't set attributes)
 #  - gtk.StatusIcon.set_from_file
 #  - gtk.StatusIcon.set_visible
 #  - gtk.Menu.append
@@ -52,8 +52,8 @@ GtkCurrentEventTime = gtk.get_current_event_time
 ThreadsInit = gobject.threads_init
 IdleAdd = gobject.idle_add
 TimeoutAdd = gobject.timeout_add_seconds
-Main=gtk.main
-Quit=gtk.main_quit
+Main = gtk.main
+Quit = gtk.main_quit
 ################################################################################
 
 class Gui(object):
@@ -245,4 +245,3 @@ class Gui(object):
         markup = markup.replace('<','&lt;').replace('>','&gt;')
         markup = re.sub(r'\[(/?(b|i|u|s|span|big|sub|sup|small|tt))\]',r'<\1>',markup)
         return markup
-        
