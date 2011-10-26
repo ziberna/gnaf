@@ -111,8 +111,11 @@ class Gnaf(object):
     def enable_disable(self):
         self.enabled = not self.enabled
         self.log('Enabled', 'TRUE' if self.enabled else 'FALSE')
-        self.icon = 'idle'
+        if self.enabled:
+            self.icon = 'idle'
         self.context = []
+        self.update_id = id()
+        self.run(self.update_id)
     
     def run(self, update_id=None):
         if not self.running:
