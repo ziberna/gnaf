@@ -1,0 +1,43 @@
+[2011-09-07] 3.1.5 Markup escaping while preserving actual tags
+                   Until now applets had to do markup escaping on their own
+                   for strings such as "<username@doman.tld>". GNAF now detects
+                   what is and isn't Pango markup and escapes strings
+                   appropriately (e.g. "<" is replaced with "&lt;") while
+                   still preserving actual tags (e.g. "<b>" and "</b>").
+
+[2011-09-06] 3.1.4 Minor changes/cleanup and colored logging
+
+[2011-09-05] 3.1.3 Added wrapping settings and some minor changes:
+                   Users can now set width of text for menu ('menu-wrap'),
+                   tooltips ('tooltip-wrap') and icon tooltip
+                   ('icon-tooltip-wrap'). Each of these settings, if not set,
+                   fall back on global setting 'wrap', which can also be set.
+                   'wrap' is by default 50.
+
+[2011-09-04] 3.1.2 Minor fixes and alias/ignore access for applet developers
+
+[2011-09-03] 3.1.1 "alias" and "ignore" settings:
+                   Any text displayed (tooltips & menu items) can now be either
+                   replaced or completely ignored with regex. Users can list
+                   regex patterns in their GNAF settings file in each applet's
+                   setting dictionary under keys "alias" and "ignore".
+
+[2011-09-03] 3.1.0 Fixed GTK freezes:
+                   GNAF 2 did most of the stuff on GUI thread, only updating and
+                   initializing was done on separate thread. While there were no
+                   GTK freezes, GUI sometimes hanged for a bit with 5+ applets
+                   running. In 3.1 GUI is still a separate class as in 3.0, but
+                   it doesn't do any messy threading within itself. Instead,
+                   GNAF always calls GUI class on GUI thread, so there's no
+                   chance any of the GTK objects are touched by other threads
+                   (which I assume was the root of the problem). The GUI class
+                   is pretty spartan for the moment though.
+
+[2011-09-01] 3.0.3 Notify-send replaced w/ pynotify (msgs don't appear in stack
+                   by default anymore)
+
+[2011-09-01] 3.0.2 Error handling for menu-item-click functions
+
+[2011-09-01] 3.0.1 GUI throttling & hide option via menu
+
+[2011-08-30] 3.0.0 MAJOR rewrite
