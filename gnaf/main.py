@@ -74,7 +74,7 @@ def main():
 
 
 def dirs():
-    user_dir = '%s/.gnaf' % os.getenv('HOME')
+    user_dir = '%s/.config/gnaf' % os.getenv('HOME')
     this_dir = os.path.abspath(os.path.dirname(__file__))
     applet_dir = '%s/applets' % this_dir
     return user_dir, this_dir, applet_dir
