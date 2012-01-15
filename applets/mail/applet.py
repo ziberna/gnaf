@@ -49,11 +49,11 @@ class MailApplet(gnaf.Gnaf):
             sett['port'],
             sett['ssl']
         )
-        if self.Mail == None:
+        if self.Mail == None or self.Mail.conn == None:
             return None
+        
         self.mailboxes = sett['mailboxes']
         self.mails_old = {}
-        
         return True
     
     def update(self):
