@@ -15,15 +15,10 @@
 #    along with this program.
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
-import sys
-import os
-import time
-
 import lib.gui as gui
 from lib.tools import id, tolist, dictmerge, Dict, thread, threadTimeout, Regex
 from lib.write import logC, logTime, debug
 from lib.format import timestamp
-from lib.istype import isint
 
 GnafApplets = []
 
