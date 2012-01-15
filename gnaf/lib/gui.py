@@ -16,7 +16,6 @@
 #    If not, see http://www.gnu.org/licenses/gpl-3.0.html
 
 import os; exists = os.path.exists
-import time
 import re
 
 from gnaf.lib.istype import *
