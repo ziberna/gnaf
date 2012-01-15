@@ -257,9 +257,9 @@ class Gnaf(object):
         self.value['visible'] = ('visible' not in self.settings or self.settings['visible'])
         self.gui.icon_types = self.settings['icon']
         self.gui.icon_paths = [
-            '%s/%s/icons' % (Gnaf.user_dir, self.name),
             '%s/%s' % (Gnaf.user_dir, self.name),
             '%s' % (Gnaf.user_dir),
+            '%s/%s/icons' % (Gnaf.user_dir, self.name),
             '%s/%s/icons' % (Gnaf.applet_dir, self.name),
             '%s/%s' % (Gnaf.applet_dir, self.name),
             '%s' % (Gnaf.applet_dir)
